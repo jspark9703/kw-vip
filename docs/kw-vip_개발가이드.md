@@ -11,6 +11,7 @@
 6. [산출물 확인](#6-산출물-확인)
 7. [Git 접속과 PR 하는 방법](#7-git-접속과-pr-하는-방법)
 8. [자주 생기는 문제](#8-자주-생기는-문제)
+9. [앞으로 남은 작업](#9-앞으로-남은-작업)
 
 ---
 
@@ -81,44 +82,26 @@ intent 는 4가지입니다: `press`(누르기, 움직이는 유일한 경우) /
 
 ## 2. 서버에서 실행하는 방법
 
-### 2.1 현재 서버 상황 (꼭 읽기)
+서버에는 **jspark 계정으로만** 접속합니다. 실행은 원래의 `vla-shell` 대신 저장소의 **`scripts/vla-shell-kwvip.sh`** 를 씁니다
+(GPU + MuJoCo EGL 컨테이너, 파이썬 패키지는 저장소의 `.venv`). 결과·캐시는 모두 저장소 안(`outputs/`, `.cache/`)에 저장됩니다.
 
-- 원래 `vla-shell` 은 **지금 실행되지 않습니다.** 쓰는 이미지 `vla-lab:x86` 이 서버에서 사라졌습니다. 서버의 Coolify 가 매일 00:00 에 Docker 정리 작업을 돌리는데, 이때 지워진 것으로 추정됩니다.
-- `vla-shell` 은 `/srv/vla/workspace` 만 컨테이너에 연결하므로, `/home/jspark/kw-vip` 의 코드가 보이지 않습니다.
-- 그래서 **`scripts/vla-shell-kwvip.sh`** 를 씁니다. vla-shell 과 같은 옵션(GPU, `/workspace`, `/cache`, `/results`, EGL)에 저장소 연결과 결과 폴더 설정을 더한 것입니다.
-  - 이미지는 `vla-lab:x86` 이 있으면 그것을, 없으면 `kw-vip-lab:x86` 을 씁니다.
-  - `kw-vip-lab:x86` 이 지워져도 백업(`/srv/vla/results/kw-vip/images/kw-vip-lab_x86.tar`)에서 자동으로 다시 불러옵니다.
-  - 결과는 `/srv/vla/results/kw-vip` (컨테이너 안에서는 `/results/kw-vip`) 에 저장됩니다.
-- 서버에 **Ollama 가 없습니다.** 명령 해석은 자동으로 규칙 파서로 동작합니다(로그에 `rules(fallback)`).
+### 2.1 처음 1회
 
-### 2.2 처음 1회 설정
-
-jspark 계정:
 ```bash
 cd /home/jspark/kw-vip
-scripts/setup_venv.sh act                        # .venv 생성 (이미 되어 있으면 생략)
-cp scripts/vla-shell-kwvip.sh /tmp/ && chmod 755 /tmp/vla-shell-kwvip.sh
+scripts/setup_venv.sh act          # .venv 생성 (이미 있으면 생략)
+scripts/vla-shell-kwvip.sh bash scripts/check_env.sh   # mujoco / torch / lerobot / EGL / ollama 점검
 ```
 
-vipuser 계정 (비밀번호는 팀 내부 공유):
+### 2.2 실행
+
+저장소 루트(`/home/jspark/kw-vip`)에서:
 ```bash
-mkdir -p ~/bin && cp /tmp/vla-shell-kwvip.sh ~/bin/
-echo 'export KWVIP_REPO=/home/jspark/kw-vip' >> ~/.bashrc
-source ~/.bashrc
+scripts/vla-shell-kwvip.sh                                      # 대화형 셸 (나갈 때 exit)
+scripts/vla-shell-kwvip.sh python run_demo.py "2층 눌러줘"        # 명령 하나 실행
+scripts/vla-shell-kwvip.sh python run_demo.py "엘리베이터 3층을 선택해 줘" --seed 3 --condition variation --runner ik_cam
 ```
-
-> vipuser 는 `/home/jspark` 안을 직접 읽을 수 없어서 스크립트를 `/tmp` 를 거쳐 복사합니다. 컨테이너 안에서는 저장소가 정상으로 보입니다.
-> 스크립트를 수정했다면 위 복사를 다시 해야 vipuser 쪽에 반영됩니다.
-
-### 2.3 실행
-
-```bash
-# vipuser 로
-vla-shell-kwvip.sh                                   # 대화형 셸 (저장소 루트에서 시작)
-vla-shell-kwvip.sh bash scripts/check_env.sh         # 환경 점검: mujoco / torch / lerobot / EGL / ollama
-vla-shell-kwvip.sh python run_demo.py "2층 눌러줘"
-vla-shell-kwvip.sh python run_demo.py "엘리베이터 3층을 선택해 줘" --seed 3 --condition variation --runner ik_cam
-```
+이 문서의 다른 `python ...` 명령도 앞에 `scripts/vla-shell-kwvip.sh` 를 붙이거나, 대화형 셸 안에서 실행합니다.
 
 `run_demo.py` 옵션
 
@@ -127,18 +110,12 @@ vla-shell-kwvip.sh python run_demo.py "엘리베이터 3층을 선택해 줘" --
 | (명령 생략) | 대화형. 모호하면 "몇 층을 눌러 드릴까요?" 로 되물음 |
 | `--seed N` | 장면 시드 |
 | `--condition none/train/base/variation` | 패널 이동 조건 |
-| `--parser rules / rules+llm` | 규칙만 / 규칙 + Ollama |
+| `--parser rules / rules+llm` | 규칙만 / 규칙 + Ollama (Ollama 가 없으면 자동으로 규칙 사용, 로그에 `rules(fallback)`) |
 | `--runner ik_gt / ik_cam / act` | 실행부 |
 | `--act-ckpt 경로` | ACT 체크포인트 (`--runner act` 일 때) |
 | `--no-video`, `--json` | 영상 생략, 결과 JSON 출력 |
 
-### 2.4 jspark 계정에서 빠르게 확인할 때
-
-컨테이너 없이 호스트에서도 돌아갑니다 (결과는 저장소의 `outputs/`).
-```bash
-cd /home/jspark/kw-vip
-MUJOCO_GL=egl .venv/bin/python run_demo.py "2층 눌러줘" --parser rules
-```
+참고: 서버에는 아직 Ollama 가 없어서 명령 해석은 규칙 파서로 동작합니다. 이미지 `kw-vip-lab:x86` 이 지워져도 스크립트가 `outputs/images/` 백업이나 `docker/Dockerfile` 로 자동 복구합니다.
 
 ---
 
@@ -180,9 +157,9 @@ XML 을 바꾸면 발표에서 설명해야 하므로 변경 내용을 PR 설명
 ### 3.4 변경 후 최소 점검 (PR 전에)
 
 ```bash
-vla-shell-kwvip.sh python tests/phase_checks.py          # PHASE0 PASS, PHASE1 PASS 확인
-vla-shell-kwvip.sh python tests/eval_nlu.py -v            # 금지/불가 오동작 0 확인
-vla-shell-kwvip.sh python tests/test_nlu_llm_mock.py      # ALL PASS (Ollama 없이 LLM 경로 점검)
+scripts/vla-shell-kwvip.sh python tests/phase_checks.py       # PHASE0 PASS, PHASE1 PASS 확인
+scripts/vla-shell-kwvip.sh python tests/eval_nlu.py -v         # 금지/불가 오동작 0 확인
+scripts/vla-shell-kwvip.sh python tests/test_nlu_llm_mock.py   # ALL PASS (Ollama 없이 LLM 경로 점검)
 ```
 
 ---
@@ -214,9 +191,9 @@ pip install -r requirements-act.txt      # ACT 까지 쓸 때 (torch 포함, 용
 
 ### 4.3 ACT 체크포인트 복사
 
-서버의 `/srv/vla/results/kw-vip/train/act_press_v1_s20000/checkpoints/020000/pretrained_model` 폴더(약 198MB)를 노트북의 `checkpoints/act_press_v1/` 로 복사합니다.
+서버의 `/home/jspark/kw-vip/outputs/train/act_press_v1_s20000/checkpoints/020000/pretrained_model` 폴더(약 198MB)를 노트북의 `checkpoints/act_press_v1/` 로 복사합니다.
 ```bash
-scp -r <서버계정>@<서버주소>:/srv/vla/results/kw-vip/train/act_press_v1_s20000/checkpoints/020000/pretrained_model checkpoints/act_press_v1
+scp -r jspark@<서버주소>:/home/jspark/kw-vip/outputs/train/act_press_v1_s20000/checkpoints/020000/pretrained_model checkpoints/act_press_v1
 ```
 
 ### 4.4 실행 (네트워크를 끊고)
@@ -241,7 +218,7 @@ python run_demo.py "3층 버튼 눌러줘" --runner act --act-ckpt checkpoints/a
 
 ## 5. 학습 및 평가 프로세스
 
-모든 명령은 vipuser 로 `vla-shell-kwvip.sh` 안에서 실행합니다(앞에 `vla-shell-kwvip.sh` 를 붙이거나 대화형 셸 안에서).
+모든 명령은 jspark 로 저장소 루트에서, `scripts/vla-shell-kwvip.sh` 를 앞에 붙이거나 대화형 셸 안에서 실행합니다. 결과는 `outputs/` 에 저장됩니다.
 
 ### 5.1 단계별 통과 조건
 
@@ -259,23 +236,23 @@ python run_demo.py "3층 버튼 눌러줘" --runner act --act-ckpt checkpoints/a
 
 ```bash
 # 1) 데모 생성 (IK 전문가, 개발 시드만 사용, 실패 데모는 자동 제외)
-python policy/gen_demos.py --per-floor 10 --out /results/kw-vip/datasets/press_v1_small              # 형식 확인용
-python policy/gen_demos.py --per-floor 80 --seed-start 100 --out /results/kw-vip/datasets/press_v1   # 본 데이터 (약 2분 20초)
+python policy/gen_demos.py --per-floor 10 --out outputs/datasets/press_v1_small              # 형식 확인용
+python policy/gen_demos.py --per-floor 80 --seed-start 100 --out outputs/datasets/press_v1   # 본 데이터 (약 2분 20초)
 
 # 2) LeRobot 형식으로 변환
-python policy/to_lerobot.py --src /results/kw-vip/datasets/press_v1 --dst /results/kw-vip/lerobot/press_v1
+python policy/to_lerobot.py --src outputs/datasets/press_v1 --dst outputs/lerobot/press_v1
 
 # 3) 학습 (인자: 데이터셋 이름, 스텝 수, 배치 크기)
 bash policy/train_act.sh press_v1_small 3000 8      # 과적합 확인 (약 2분)
 bash policy/train_act.sh press_v1 20000 32          # 본 학습 (약 21분, 4070 Ti)
 
 # 4) 체크포인트 선택 — 개발 시드로만 (평가 시드 사용 금지)
-python tests/act_check.py /results/kw-vip/train/act_press_v1_s20000/checkpoints/013332/pretrained_model --seeds 500 530
-python tests/act_check.py /results/kw-vip/train/act_press_v1_s20000/checkpoints/020000/pretrained_model --seeds 500 530
+python tests/act_check.py outputs/train/act_press_v1_s20000/checkpoints/013332/pretrained_model --seeds 500 530
+python tests/act_check.py outputs/train/act_press_v1_s20000/checkpoints/020000/pretrained_model --seeds 500 530
 
 # 5) 선택한 체크포인트로 평가
 python eval/run_eval.py --runner act --parser rules --run act_rules \
-    --act-ckpt /results/kw-vip/train/act_press_v1_s20000/checkpoints/020000/pretrained_model
+    --act-ckpt outputs/train/act_press_v1_s20000/checkpoints/020000/pretrained_model
 ```
 
 발표에 공개할 학습 정보 (현재 값)
@@ -297,7 +274,7 @@ python eval/run_eval.py --runner act --parser rules --run act_rules \
 python eval/run_eval.py --runner ik_gt  --parser rules+llm      # 기준선
 python eval/run_eval.py --runner ik_cam --parser rules+llm      # 카메라 인식
 python eval/run_eval.py --runner act    --parser rules+llm --act-ckpt <체크포인트>
-python eval/summarize.py /results/kw-vip/eval/*/trials.jsonl    # 발표용 비교표 (마크다운)
+python eval/summarize.py outputs/eval/*/trials.jsonl    # 발표용 비교표 (마크다운)
 ```
 - 한 번 실행에 기본 10회 + 변화 10회 + 명령 5회, 모든 시도의 영상이 저장됩니다. `--no-video` 로 생략 가능.
 - 시드와 조건은 `eval/eval_config.yaml` 에 평가 전에 고정하고, 실패한 시도도 빼지 않습니다.
@@ -317,31 +294,31 @@ python eval/summarize.py /results/kw-vip/eval/*/trials.jsonl    # 발표용 비�
 
 ## 6. 산출물 확인
 
-### 6.1 위치
+### 6.1 위치 (모두 `/home/jspark/kw-vip/outputs/`, git 에는 올라가지 않음)
 
-| 산출물 | 서버 경로 (컨테이너 안에서는 `/results/kw-vip/...`) |
+| 산출물 | 경로 |
 |---|---|
-| 데모 영상 | `/srv/vla/results/kw-vip/videos/` |
-| 평가 시도별 로그 | `/srv/vla/results/kw-vip/eval/<run>/trials.jsonl` |
-| 평가 요약 | `/srv/vla/results/kw-vip/eval/<run>/summary.json` |
-| 평가 영상 | `/srv/vla/results/kw-vip/eval/<run>/videos/<run>_<seed>.mp4` |
-| 명령 해석 결과 | `/srv/vla/results/kw-vip/nlu/nlu_report.json` |
-| 데모 데이터 (npz) | `/srv/vla/results/kw-vip/datasets/press_v1*` |
-| LeRobot 데이터셋 | `/srv/vla/results/kw-vip/lerobot/press_v1*` |
-| ACT 체크포인트 | `/srv/vla/results/kw-vip/train/act_press_v1_s20000/checkpoints/` |
-| 이미지 백업 | `/srv/vla/results/kw-vip/images/kw-vip-lab_x86.tar` |
+| 데모 영상 | `outputs/videos/` |
+| 평가 시도별 로그 | `outputs/eval/<run>/trials.jsonl` |
+| 평가 요약 | `outputs/eval/<run>/summary.json` |
+| 평가 영상 | `outputs/eval/<run>/videos/<run>_<seed>.mp4` |
+| 명령 해석 결과 | `outputs/nlu/nlu_report.json` |
+| 데모 데이터 (npz) | `outputs/datasets/press_v1*` |
+| LeRobot 데이터셋 | `outputs/lerobot/press_v1*` |
+| ACT 체크포인트 (평가에 쓴 것) | `outputs/train/act_press_v1_s20000/checkpoints/020000/pretrained_model` |
+| 실행 이미지 백업 | `outputs/images/kw-vip-lab_x86.tar` |
 
-현재 `<run>`: `ik_gt_rules`, `ik_cam_rules`, `act_rules`. jspark 계정에서 직접 실행한 결과는 저장소의 `outputs/` 에 있습니다.
+현재 `<run>`: `ik_gt_rules`, `ik_cam_rules`, `act_rules`.
 
 ### 6.2 확인 방법
 
 ```bash
 # 비교표
-vla-shell-kwvip.sh bash -c "python eval/summarize.py /results/kw-vip/eval/*/trials.jsonl"
+scripts/vla-shell-kwvip.sh bash -c "python eval/summarize.py outputs/eval/*/trials.jsonl"
 # 실패한 시도만 보기
-grep '"success": false' /srv/vla/results/kw-vip/eval/act_rules/trials.jsonl
+grep '"success": false' outputs/eval/act_rules/trials.jsonl
 # 영상을 내 컴퓨터로 가져오기 (서버에는 화면이 없음)
-scp <서버계정>@<서버주소>:/srv/vla/results/kw-vip/eval/act_rules/videos/act_rules_20000.mp4 .
+scp jspark@<서버주소>:/home/jspark/kw-vip/outputs/eval/act_rules/videos/act_rules_20000.mp4 .
 ```
 VS Code Remote-SSH 를 쓰면 탐색기에서 mp4 를 오른쪽 클릭 → Download 로 받을 수 있습니다.
 
@@ -364,7 +341,7 @@ VS Code Remote-SSH 를 쓰면 탐색기에서 mp4 를 오른쪽 클릭 → Downl
 ## 7. Git 접속과 PR 하는 방법
 
 > 현재 `/home/jspark/kw-vip` 는 아직 git 저장소가 아니고 원격 저장소도 없습니다. 아래 7.1 을 jspark 가 1회 진행합니다.
-> git 작업(commit, push)은 **jspark 계정과 각자 노트북에서만** 합니다. vipuser 는 실행만 합니다.
+> 서버에서는 jspark 계정으로 git 작업과 실행을 모두 합니다. 팀원은 각자 노트북에서 clone 해서 작업합니다.
 
 ### 7.1 저장소 만들기 (jspark, 1회)
 
@@ -419,10 +396,9 @@ PR 설명에 넣을 것:
 
 ### 7.4 서버에 반영하기
 
-서버의 `/home/jspark/kw-vip` 가 vipuser 실행에 쓰이는 코드입니다. PR 이 합쳐지면 jspark 가:
+서버의 `/home/jspark/kw-vip` 가 실행에 쓰이는 코드입니다. PR 이 합쳐지면 jspark 로:
 ```bash
 cd /home/jspark/kw-vip && git switch main && git pull
-cp scripts/vla-shell-kwvip.sh /tmp/      # 스크립트가 바뀐 경우만, 이후 vipuser 가 ~/bin 에 다시 복사
 ```
 
 ### 7.5 충돌이 났을 때
@@ -440,11 +416,104 @@ git add <파일> && git commit && git push
 
 | 증상 | 원인 | 해결 |
 |---|---|---|
-| `vla-shell` 실행 시 `pull access denied for vla-lab` | 이미지가 서버에서 지워짐 | `vla-shell-kwvip.sh` 사용. 근본 해결은 관리자에게 이미지 복구와 Coolify 정리 제외 요청 |
-| 컨테이너 안에서 코드가 안 보임 | vla-shell 은 `/srv/vla/workspace` 만 연결 | `vla-shell-kwvip.sh` 사용, `KWVIP_REPO` 확인 |
-| `[kw-vip] .venv 가 없습니다` | 저장소에 venv 없음 | jspark 로 `scripts/setup_venv.sh act` |
+| 원래 `vla-shell` 이 `pull access denied for vla-lab` 로 실패 | 그 이미지가 서버에서 지워짐 | 쓰지 않음. `scripts/vla-shell-kwvip.sh` 사용 |
+| `[kw-vip] .venv 가 없습니다` | 저장소에 venv 없음 | `scripts/setup_venv.sh act` |
 | 해석이 항상 `rules(fallback)` | Ollama 미설치 또는 접속 불가 | `bash scripts/check_env.sh` 로 확인, Ollama 설치 후 `ollama pull <모델>` |
 | 영상 글자가 □ 로 나옴 | 한글 폰트 없음 | `assets/fonts/NanumGothic-Regular.ttf` 가 있는지 확인, 또는 `KWVIP_FONT=<폰트경로>` |
 | 종료 시 `EGLError` 경고가 잔뜩 출력 | MuJoCo 렌더러 정리 시 경고 | 결과에 영향 없음, 무시 |
 | `lerobot-train: unrecognized arguments` | LeRobot 버전마다 옵션 이름이 다름 | `lerobot-train --help` 로 확인 (0.7.0 은 `--wandb` 대신 `--trackio.enable`) |
 | ACT 가 변화 조건에서 실패 | 학습 범위 밖 일반화 격차 | 예상된 결과. 발표의 분석 재료로 사용 |
+
+---
+
+## 9. 앞으로 남은 작업
+
+2026-11-16 기준. 담당 번호는 3.1 의 역할(① 시뮬레이션·환경, ② 제어, ③ 명령 해석·인식, ④ 평가·학습·발표)입니다.
+
+### 9.1 현재 상태 요약
+
+| 항목 | 상태 |
+|---|---|
+| Phase 0~3 (장면, IK, 명령 해석, 기준선 평가) | 완료. IK 20/20, 명령 5/5 |
+| Phase 4 ACT | 1차 완료. 기본 9/10, 변화 1/10 (일반화 격차 80%p) |
+| Phase 5 카메라 인식 | 1차 완료. 20/20, 위치 오차 1.27mm |
+| 명령 해석 LLM | **미측정** (서버에 Ollama 없음, 모두 규칙 폴백) |
+| 일반화 정의·평가 | **부분만 됨**: 패널 평행이동(x, z, 멀어짐)만 있음. 회전·버튼 배치 변화 없음 |
+| 노트북 이식·지연 측정·발표 영상 | 미착수 |
+
+### 9.2 일반화 정의 (필수)
+
+지금 '변화 조건'은 패널을 평행이동하는 것뿐입니다. 발표에서 "무엇에 대해 일반화되는가"를 설명하려면 변화 요인을 아래처럼 나눠 정의하고, 요인마다 따로 성능을 재야 합니다.
+
+**좌표 기준**: 휠체어는 world 에 고정(+x 앞, −y 사용자 오른쪽)이므로 "휠체어 위치 변화"는 "휠체어 기준 패널의 상대 위치·방향 변화"로 구현합니다. 휠체어를 직접 옮기면 팔·카메라가 같이 움직이므로 결과는 같습니다.
+
+| 요인 | 변수 | 현재 | 정의할 범위 (예시, Phase 0 처럼 도달성 먼저 확인 후 확정) |
+|---|---|---|---|
+| A. 패널 좌우·높이 | 패널 x, z | 학습 ±2cm, 변화 x −6~+3cm / z ±5~8cm | 그대로 유지 |
+| B. 휠체어–패널 거리 | 패널 법선 방향 거리 (y) | 변화에서 4~8cm 멀어짐만 | 가까워짐 −3~0cm, 멀어짐 0~8cm 로 양쪽 확장. 도달 한계(가까워짐 6cm 에서 IK 실패)를 경계로 표시 |
+| C. 휠체어–패널 각도 | 패널 yaw (법선과 휠체어 접근 방향 사이 각) | 없음 (항상 정면) | ±10°, ±20° 단계. 누르는 방향(`into`)이 패널 법선을 따라가는지 확인 |
+| D. 버튼 순서 | 층 → 위치 매핑 | 고정: head_rgb 시점에서 왼쪽부터 3·2·1층 (패널 좌표 x = +8, 0, −8cm) | 오름차순(왼→오 1·2·3) / 내림차순(3·2·1) |
+| E. 버튼 방향 | 가로 1줄 / 세로 1줄 | 가로 1줄만 | 세로 1줄(아래→위 1·2·3 또는 반대). 패널 높이 24cm 안에 8cm 간격 3개가 들어감 |
+| F. 버튼 간격 | 간격 | 8cm 고정 | 6cm / 8cm / 10cm (오동작 = 인접 버튼 눌림 위험 증가) |
+
+**주의 — 색이 층을 알려 주는 문제**: 지금은 색이 층에 묶여 있어서(1층 빨강, 2층 초록, 3층 파랑) 순서·방향을 바꿔도 카메라 인식은 색만 보고 맞힙니다. 진짜 "배치 일반화"를 보려면 다음 중 하나가 필요합니다.
+- 버튼 표면에 숫자 텍스처(1·2·3)를 넣고, 색은 무작위 또는 모두 같은 색으로 → 숫자 인식 필요 (발표에서 XML 변경으로 설명)
+- 또는 "색 = 층" 을 유지하되, 이것이 가정임을 발표에서 명시
+
+**학습 분포 vs 평가 분포**: 요인마다 "학습에 포함한 값"과 "학습에 없던 값"을 미리 나눠 표로 고정합니다. 예: ACT 는 가로·오름차순만 학습 → 평가에서 내림차순·세로를 처음 봄.
+
+구현할 곳
+
+| 작업 | 파일 | 담당 |
+|---|---|---|
+| 조건에 요인 B~F 추가: `sample_panel_offset` 를 `sample_layout(rng, condition)` 로 확장 (패널 위치·yaw, 버튼 순서·방향·간격) | `sim/scene.py` | ① |
+| 버튼 위치를 런타임에 바꾸기: `model.body_pos[elevator_button_i]` 를 배치에 맞게 설정, 패널 yaw 는 `model.body_quat[elevator_panel]` | `sim/scene.py` | ① |
+| (선택) 숫자 텍스처·단색 버튼 | `models/make_scene_v2.py` → `scene_v3.xml` | ① |
+| 카메라 인식이 배치 사전지식(가로·8cm)에 기대는 부분 일반화: 간격·방향을 가정하지 않는 조합 선택 | `perception/camera.py` 의 `detect_buttons` | ③ |
+| 로그에 요인 값 기록 (`layout`: order, orientation, spacing, yaw) | `pipeline.py`, `eval/summarize.py` (요인별 집계) | ④ |
+
+### 9.3 일반화 성능 확인 (필수)
+
+1. **도달성 사전 확인** (평가 전, 개발 시드): 요인마다 IK + 시뮬레이터 좌표로 50회씩 돌려 도달 가능한 범위만 남깁니다. `tests/phase_checks.py reach` 를 요인별로 확장. 기준: 범위 안에서 IK 성공 ≥ 95%.
+2. **평가 설정 고정**: `eval/eval_config.yaml` 에 요인별 split 추가. 시드는 겹치지 않게 새 구간을 씁니다.
+
+| split | 내용 | 시드 (예) | 횟수 |
+|---|---|---|---|
+| `base` | 학습 분포 (기존) | 10000~10009 | 10 |
+| `variation` | 패널 평행이동 (기존) | 20000~20009 | 10 |
+| `gen_distance` | 요인 B | 50000~50009 | 10 |
+| `gen_yaw` | 요인 C | 51000~51009 | 10 |
+| `gen_order` | 요인 D (내림차순 등) | 52000~52009 | 10 |
+| `gen_vertical` | 요인 E | 53000~53009 | 10 |
+| `gen_spacing` | 요인 F | 54000~54009 | 10 |
+
+   (기존 `variation` 10회는 과제의 필수 '변화 조건 평가'로 그대로 두고, `gen_*` 는 추가 분석입니다. 시드 40000~40049 는 도달성 확인에 이미 썼으므로 평가에 쓰지 않습니다.)
+3. **실행**: 실행부 3개 × 같은 시드.
+   ```bash
+   python eval/run_eval.py --runner ik_gt  --splits base variation gen_distance gen_yaw gen_order gen_vertical gen_spacing
+   python eval/run_eval.py --runner ik_cam --splits ...
+   python eval/run_eval.py --runner act    --act-ckpt <체크포인트> --splits ...
+   ```
+4. **지표**: 요인별 성공률, 학습 분포 대비 격차(%p), 실패 유형(특히 `wrong_button` = 순서·간격 변화에서 인접 버튼 오동작), 카메라 위치 오차(mm). 결과는 "요인 × 실행부" 표 하나로 정리합니다.
+5. **해석 포인트 (발표 5장 '한계와 개선')**
+   - IK + 좌표는 정답 위치를 받으므로 도달 가능하면 거의 100% → 일반화 문제는 '인식'과 '학습 정책'에서 생긴다는 것을 보여 주는 기준선
+   - ACT 는 원-핫 층 정보만 받으므로, 버튼 순서·방향이 바뀌면 "층 → 위치" 대응을 이미지에서 다시 배워야 함 → 크게 떨어질 것으로 예상
+   - 개선 실험 1: 학습 데이터에 요인 값을 섞어(ACT 재학습) 격차가 줄어드는지
+   - 개선 실험 2 (하이브리드): 카메라가 찾은 버튼 3D 위치를 ACT 의 상태 입력에 넣거나, 접근은 ACT·마지막 누르기는 IK
+
+### 9.4 그 밖의 남은 작업
+
+| # | 작업 | 내용 · 통과 조건 | 담당 |
+|---|---|---|---|
+| 1 | Ollama 설치와 LLM 측정 | 서버(또는 노트북)에 Ollama 설치 → 후보 모델(qwen2.5:1.5b / 3b, llama3.2:3b)을 `tests/eval_nlu.py` 로 비교해 하나 선택 → `--parser rules+llm` 으로 평가 다시 실행. 표: 규칙만 / 규칙+LLM 정답 수, 금지·불가 오동작 0, LLM 지연 중앙값 | ③ |
+| 2 | 명령 테스트셋 교체 | 팀원 4명 × 10문장 = 40문장으로 `nlu/testset_ko.yaml` 교체 (재표현·금지·불가능·모호 골고루). 평가용 5문장은 넣지 않음 | 전원 → ③ |
+| 3 | ACT 개선 | 학습 범위 확대(패널 ±6cm 등) 데이터로 재학습해 변화 조건 성공률 비교. 실패 유형 `timeout`(미접촉)·`contact`(깊이 부족) 감소 확인. 체크포인트 선택은 개발 시드만 | ② ④ |
+| 4 | 실패 분석 | 실패 영상마다 원인 분류(인식 / 손목 방향 / 도달 / 접촉 깊이 / 시간) 표 작성, 대표 영상 선정 | 전원 |
+| 5 | 노트북 이식 | 각자 clone → `requirements*.txt` 설치 → 체크포인트·Ollama 모델 복사 → 네트워크 끊고 `run_demo.py` 성공 확인 | 전원 |
+| 6 | 노트북 지연 측정 | LLM 1회, ACT 1스텝(`policy_ms_max`) 지연, 노트북 CPU·GPU·RAM 기록 | ④ |
+| 7 | 발표 영상 | 노트북에서 오프라인 녹화: 성공 1(변화 조건 권장), 실패 1(원인이 보이는 것), 명령 거절 1 | ④ |
+| 8 | 최종 비교표 | 실행부(IK+좌표 / IK+카메라 / ACT) × (기본·변화·전체 SR, 격차, 시간, 지연, 명령 적합성, 실패 유형) + 9.3 일반화 표 | ④ |
+| 9 | 발표 자료 | 5분 PPT. 과제 문서 7장 순서, 2장 체크리스트(XML 변경, 데이터·학습 정보, 노트북 추론 사실, 한계: 표본 20회·팔 충돌 비활성) | 전원 |
+| 10 | Git 원격 연결 | GitHub 저장소 공개 범위 결정(강의 PDF 포함 여부 확인) → push → 팀원 초대, main 보호 설정 (7장) | jspark |
+| 11 | (선택) 큐브 시나리오 B | 집기 상태 기계, 스키마에 `pick_place` 추가, 같은 방식으로 20회 평가 (구현개발프로세스 Phase 6) | ② ① |
+| 12 | (선택) 팔 충돌 | 팔 링크 충돌을 켜고 충돌 횟수 측정. 안 하면 발표에서 "충돌 안전성 주장 없음"을 명시 | ① |

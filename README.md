@@ -26,9 +26,9 @@ MuJoCo 휠체어–PiPER 모델에서 "2층 눌러줘" 같은 한국어 명령�
 | `eval/` | `eval_config.yaml`(고정 시드), `run_eval.py`, `summarize.py` |
 | `pipeline.py` / `run_demo.py` | 한 시도 실행 / 텍스트 입력 데모 |
 | `tests/` | `phase_checks.py`(Phase 0·1 통과 조건), `eval_nlu.py`(Phase 2 표), `check_camera.py` |
-| `scripts/` | `vla-shell-kwvip.sh`(vipuser 실행 환경), `setup_venv.sh`, `check_env.sh` |
+| `scripts/` | `vla-shell-kwvip.sh`(서버 실행 환경), `setup_venv.sh`, `check_env.sh` |
 | `docker/Dockerfile` | vla-lab 이미지 대체용 경량 런타임 |
-| `outputs/` | 로그·영상·데이터셋·체크포인트 (git 제외). 컨테이너에서는 `/results/kw-vip` |
+| `outputs/` | 로그·영상·데이터셋·체크포인트 (git 제외) |
 
 ## 실행
 
@@ -51,38 +51,15 @@ MUJOCO_GL=egl python eval/run_eval.py --runner ik_cam --parser rules+llm
 python eval/summarize.py outputs/eval/*/trials.jsonl  # 발표용 비교표 (마크다운)
 ```
 
-## 서버 실행 환경 (vipuser + vla-shell) — 현재 상태와 해결책
+## 서버 실행 (jspark 계정)
 
-점검 결과(2026-11-16):
-
-1. **`vla-shell` 이 실행되지 않음.** `/usr/local/bin/vla-shell` 은 `docker run ... vla-lab:x86` 인데,
-   이 이미지가 서버에 없다(`pull access denied for vla-lab`). 서버의 Coolify 가 매일 00:00 에 `DockerCleanupJob` 을 돌리는 것이
-   로그에 있어, 쓰이지 않는 이미지가 정리되면서 지워졌을 가능성이 높다(추정).
-2. **vla-shell 은 `/srv/vla/workspace` 만 마운트**하므로, 코드가 `/home/jspark/kw-vip` 에 있으면 컨테이너 안에서 보이지 않는다.
-   문서의 ACL 방식만으로는 부족하고, 서버에 `setfacl`(acl 패키지)도 설치돼 있지 않다.
-3. vipuser 는 호스트에서 `/home/jspark`(권한 750)을 통과할 수 없다.
-
-해결(적용됨): `scripts/vla-shell-kwvip.sh`
-- vla-shell 과 같은 옵션(`--gpus all`, `/workspace`, `/cache`, `/results`, EGL)에 **저장소를 같은 경로로 추가 마운트**한다.
-  바인드 마운트는 docker 데몬이 하므로 3번 권한 문제와 무관하다.
-- 이미지는 `vla-lab:x86` 이 있으면 그것을, 없으면 `docker/Dockerfile` 로 만든 **`kw-vip-lab:x86`**(Ubuntu 24.04 + EGL, 파이썬 패키지는 저장소 `.venv`)을 쓴다.
-  정리 작업에 지워지지 않도록 정지 컨테이너 `kwvip-lab-keep` 이 이미지를 참조하고, 지워져도 `/srv/vla/results/kw-vip/images/kw-vip-lab_x86.tar` 에서 다시 불러온다.
-- 결과는 vipuser 가 쓸 수 있는 `/srv/vla/results/kw-vip` 에 저장한다(`KWVIP_OUT`).
-
-vipuser 사용법 (1회 설치 후):
+원래의 `vla-shell` 은 쓰지 않고 `scripts/vla-shell-kwvip.sh` 로 실행한다 (GPU + MuJoCo EGL 컨테이너 `kw-vip-lab:x86`, 패키지는 `.venv`, 결과는 `outputs/`).
 ```bash
-# jspark: 스크립트를 vipuser 가 읽을 수 있는 곳으로 복사
-cp ~/kw-vip/scripts/vla-shell-kwvip.sh /tmp/ && chmod 755 /tmp/vla-shell-kwvip.sh
-# vipuser:
-mkdir -p ~/bin && cp /tmp/vla-shell-kwvip.sh ~/bin/ && echo 'export KWVIP_REPO=/home/jspark/kw-vip' >> ~/.bashrc
-vla-shell-kwvip.sh                                   # 대화형 셸, 이후 python run_demo.py ...
-vla-shell-kwvip.sh python eval/run_eval.py --runner ik_gt --parser rules
+scripts/setup_venv.sh act                                  # 처음 1회
+scripts/vla-shell-kwvip.sh                                 # 대화형 셸
+scripts/vla-shell-kwvip.sh python run_demo.py "2층 눌러줘"
 ```
-
-근본 해결(관리자 요청 사항):
-- `vla-lab:x86` 이미지 복구(백업 `docker load` 또는 재빌드)와, Coolify 의 Docker Cleanup 설정에서 이 이미지를 제외하거나 정리 주기 조정.
-- 공유 폴더가 필요하면 `sudo apt install acl` 후 문서의 `setfacl` 명령을 실행하거나,
-  vipuser 가 `/srv/vla/workspace/students/junsoo/` 에 git clone 해서 쓰는 방식(노트북 이식 흐름과 같음).
+자세한 내용은 [docs/kw-vip_개발가이드.md](docs/kw-vip_개발가이드.md) 2장.
 
 ## Ollama (명령 해석 LLM)
 
@@ -102,15 +79,15 @@ Windows 에서는 `MUJOCO_GL` 을 지정하지 않는다(기본 glfw).
 ## ACT (Phase 4) 실행 순서
 
 ```bash
-# 모두 vla-shell-kwvip.sh 안에서 (결과는 /results/kw-vip/...)
-python policy/gen_demos.py --per-floor 80 --seed-start 100 --out /results/kw-vip/datasets/press_v1
-python policy/to_lerobot.py --src /results/kw-vip/datasets/press_v1 --dst /results/kw-vip/lerobot/press_v1
+# 모두 scripts/vla-shell-kwvip.sh 안에서 (결과는 outputs/...)
+python policy/gen_demos.py --per-floor 80 --seed-start 100 --out outputs/datasets/press_v1
+python policy/to_lerobot.py --src outputs/datasets/press_v1 --dst outputs/lerobot/press_v1
 bash policy/train_act.sh press_v1 20000 32
-python tests/act_check.py /results/kw-vip/train/act_press_v1_s20000/checkpoints/020000/pretrained_model --seeds 500 530   # 체크포인트 선택(개발 시드)
+python tests/act_check.py outputs/train/act_press_v1_s20000/checkpoints/020000/pretrained_model --seeds 500 530   # 체크포인트 선택(개발 시드)
 python eval/run_eval.py --runner act --parser rules --run act_rules --act-ckpt <선택한 체크포인트>
 ```
 
-## 서버 실측 결과 (2026-11-16, vipuser + kw-vip-lab 컨테이너, RTX 4070 Ti)
+## 서버 실측 결과 (2026-11-16, kw-vip-lab 컨테이너, RTX 4070 Ti)
 
 | 실행부 | 기본 SR | 변화 SR | 전체 SR | 일반화 격차 | 성공 시 시간(중앙값) | 명령 적합성(5회) | 주요 실패 유형 |
 |---|---|---|---|---|---|---|---|
