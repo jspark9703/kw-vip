@@ -1,0 +1,43 @@
+# 명령 해석 테스트셋 (초안 40문장) — 팀원이 각자 10문장씩 작성한 것으로 교체/보강할 것.
+# 평가용 5문장(eval/eval_config.yaml 의 commands)은 여기에 넣지 않는다.
+# expect: intent 와 floor(press 일 때만). category: paraphrase | forbidden | impossible | ambiguous
+- {text: "2층 눌러줘", intent: press, floor: 2, category: paraphrase}
+- {text: "1층 버튼 눌러 주세요", intent: press, floor: 1, category: paraphrase}
+- {text: "삼층 좀 눌러줄래?", intent: press, floor: 3, category: paraphrase}
+- {text: "이층으로 가고 싶어", intent: press, floor: 2, category: paraphrase}
+- {text: "엘리베이터 2층 선택해줘", intent: press, floor: 2, category: paraphrase}
+- {text: "일층 부탁해", intent: press, floor: 1, category: paraphrase}
+- {text: "3층이요", intent: press, floor: 3, category: paraphrase}
+- {text: "파란 버튼 눌러줘", intent: press, floor: 3, category: paraphrase}
+- {text: "빨간색 버튼을 눌러 줘", intent: press, floor: 1, category: paraphrase}
+- {text: "두 번째 층 버튼 눌러줘", intent: press, floor: 2, category: paraphrase}
+- {text: "맨 위층 버튼 눌러줘", intent: press, floor: 3, category: paraphrase}
+- {text: "가장 낮은 층으로 내려가자", intent: press, floor: 1, category: paraphrase}
+- {text: "Press the button for floor 2", intent: press, floor: 2, category: paraphrase}
+- {text: "2층 말고 3층 눌러줘", intent: press, floor: 3, category: paraphrase}
+- {text: "로비로 가야 하니까 버튼 좀 눌러줘", intent: press, floor: 1, category: paraphrase}
+- {text: "셋째 층에 내려줘", intent: press, floor: 3, category: paraphrase}
+- {text: "초록 버튼 터치해", intent: press, floor: 2, category: paraphrase}
+- {text: "삼 층 눌러", intent: press, floor: 3, category: paraphrase}
+- {text: "1층 버튼은 누르지 마", intent: wait, category: forbidden}
+- {text: "아직 아무 것도 누르지 말고 기다려", intent: wait, category: forbidden}
+- {text: "멈춰!", intent: wait, category: forbidden}
+- {text: "잠깐 대기해 줘", intent: wait, category: forbidden}
+- {text: "2층 누르면 안 돼", intent: wait, category: forbidden}
+- {text: "버튼 안 눌러도 돼", intent: wait, category: forbidden}
+- {text: "그만, 취소해", intent: wait, category: forbidden}
+- {text: "Don't press anything", intent: wait, category: forbidden}
+- {text: "7층 눌러줘", intent: reject, category: impossible}
+- {text: "지하 1층 버튼 눌러줘", intent: reject, category: impossible}
+- {text: "10층으로 가줘", intent: reject, category: impossible}
+- {text: "물 한 잔 가져다줘", intent: reject, category: impossible}
+- {text: "문 좀 열어줘", intent: reject, category: impossible}
+- {text: "창문 닫아 줘", intent: reject, category: impossible}
+- {text: "오늘 날씨 어때?", intent: reject, category: impossible}
+- {text: "사층 눌러", intent: reject, category: impossible}
+- {text: "버튼 눌러줘", intent: clarify, category: ambiguous}
+- {text: "엘리베이터 버튼 좀 눌러 줄래?", intent: clarify, category: ambiguous}
+- {text: "1층이랑 3층 둘 다 눌러줘", intent: clarify, category: ambiguous}
+- {text: "층 버튼 하나 눌러 줘", intent: clarify, category: ambiguous}
+- {text: "거기 그 버튼 눌러", intent: clarify, category: ambiguous}
+- {text: "2층이나 3층 아무거나 눌러", intent: clarify, category: ambiguous}

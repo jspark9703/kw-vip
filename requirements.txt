@@ -1,0 +1,11 @@
+# 서버(vla-shell 대체 컨테이너 / 호스트 venv)에서 점검한 버전 (2026-11-16, Python 3.12.3, RTX 4070 Ti)
+# 노트북(Windows/macOS/Linux)에서도 같은 버전 권장. GPU 불필요 (IK 기준선·카메라 인식·규칙 파서)
+mujoco==3.17.0
+numpy==2.5.5
+pillow==13.0.0
+imageio==2.38.1
+imageio-ffmpeg==0.8.1
+PyYAML==6.0.3
+requests==2.34.2
+scipy==1.18.1
+matplotlib==3.11.2

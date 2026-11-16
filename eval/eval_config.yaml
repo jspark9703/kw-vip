@@ -1,0 +1,35 @@
+# 평가 설정 — 평가 '전에' 고정한다. 실패한 시도도 빼지 않는다.
+# 성공 기준: 목표 버튼 slide 최대 변위 >= 10mm 이고 다른 버튼 최대 변위 < 3mm (관절 변위로 판정)
+# 종료 조건: 상태 기계가 RETRACT 까지 끝나거나, 작업 시뮬레이션 시간 15s 초과(timeout)
+# 실패 유형: nlu(해석) / perception(인식) / ik(도달 불가) / timeout / contact(10mm 미만) / wrong_button(다른 버튼 3mm 이상)
+#           moved_when_forbidden(움직이면 안 되는 명령에서 버튼이 눌림)
+success:
+  target_min_mm: 10.0
+  other_max_mm: 3.0
+  timeout_s: 15.0
+
+# 학습·개발용 시드 (데모 생성, 체크포인트 선택) — 평가 시드와 겹치지 않음
+dev:
+  condition: train          # x ±2cm, z ±2cm
+  seeds: [0, 999]           # 범위 [start, end] 포함
+
+splits:
+  base:                     # 기본 평가 10회: 학습과 같은 범위, 새 시드
+    condition: base         # x ±2cm, z ±2cm
+    seeds: [10000, 10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008, 10009]
+  variation:                # 변화 평가 10회: 학습에 없는 패널 위치 (도달 가능 범위로 사전 확인)
+    condition: variation    # x U(-6,+3)cm 그리고 [z ±U(5,8)cm 또는 패널이 U(4,8)cm 멀어짐]
+    seeds: [20000, 20001, 20002, 20003, 20004, 20005, 20006, 20007, 20008, 20009]
+
+# 20회 시도에 쓰는 명령 문장 (목표 층은 시드에서 뽑힘). {floor} 자리에 층 번호.
+trial_command: "{floor}층 버튼 눌러줘"
+
+# 명령 해석 점검 5회 (재표현 2, 대기·금지 2, 불가능 1). nlu/testset_ko.yaml 에 넣지 않는다.
+commands:
+  condition: base
+  items:
+    - {seed: 30000, text: "3층 버튼을 눌러줘",               expect: {intent: press, floor: 3}, kind: paraphrase}
+    - {seed: 30001, text: "엘리베이터 1층을 선택해 줘",        expect: {intent: press, floor: 1}, kind: paraphrase}
+    - {seed: 30002, text: "버튼은 누르지 말고 대기해",          expect: {intent: wait},            kind: forbidden}
+    - {seed: 30003, text: "잠깐, 아무것도 건드리지 말고 가만히 있어", expect: {intent: wait},     kind: forbidden}
+    - {seed: 30004, text: "현재 장면에 없는 7층 버튼을 눌러줘",   expect: {intent: reject},          kind: impossible}
