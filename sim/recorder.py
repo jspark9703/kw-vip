@@ -65,7 +65,21 @@ def hidden_site_option() -> mujoco.MjvOption:
     """site(목표 마커·press_tip) 는 실제 물체가 아니므로 카메라 영상에서 숨긴다."""
     opt = mujoco.MjvOption()
     opt.sitegroup[:] = 0
+    opt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0  # 라이다 광선 표시 끔 (scene_v3)
     return opt
+
+
+def follow_camera(sim, cam: mujoco.MjvCamera):
+    """scene_v3: 휠체어를 비스듬히 위에서 따라가는 시점 (패널 근처에서는 패널과 손끝이 함께 보이게)."""
+    x, y, _ = sim.base_pose()
+    panel = sim.data.xpos[sim.model.body("elevator_panel").id]
+    near = np.hypot(panel[0] - x, panel[1] - y) < 1.6
+    if near:
+        cam.lookat[:] = [0.5 * (x + panel[0]) + 0.1, 0.5 * (y + panel[1]) + 0.2, 0.9]
+        cam.distance, cam.azimuth, cam.elevation = 2.0, -60, -28
+    else:
+        cam.lookat[:] = [x + 0.3, y - 0.2, 0.6]
+        cam.distance, cam.azimuth, cam.elevation = 3.2, -80, -58   # 맞은편 벽(y=3.6) 안쪽에서 내려다봄
 
 
 def observer_camera() -> mujoco.MjvCamera:
@@ -94,6 +108,10 @@ class Recorder:
         self.header = header or {}
         self.state = ""
         self.result = None
+        self.mobile = hasattr(sim, "base_pose")
+        self.nav_path = None
+        self.grid = None
+        self.goal = None
         self.frames: list[np.ndarray] = []
         self._k = 0
 
@@ -108,11 +126,21 @@ class Recorder:
             self.state = kw["state"]
         if "result" in kw:
             self.result = kw["result"]
+        if "path" in kw:
+            self.nav_path = kw["path"]
+        if "grid" in kw:
+            self.grid = kw["grid"]
+        if "goal" in kw:
+            self.goal = kw["goal"]
 
     def capture(self):
         s = self.sim
+        if self.mobile:
+            follow_camera(s, self.cam)
         self.big.update_scene(s.data, camera=self.cam, scene_option=self.opt)
         obs = self.big.render()
+        if self.mobile:
+            obs = self._minimap(obs)
         self.small.update_scene(s.data, camera="head_rgb", scene_option=self.opt)
         head = self.small.render()
         self.small.update_scene(s.data, camera="wrist_rgb", scene_option=self.opt)
@@ -135,20 +163,56 @@ class Recorder:
         f.draw(dr, (10, y + 26), f"해석[{h.get('parser', '-')}]: {ptxt}"[:90], (180, 220, 255))
         f.draw(dr, (10, y + 52), f"실행부: {h.get('runner', '-')}   상태: {self.state}", (255, 220, 140))
         x0 = 10  # 버튼 변위 막대 (흰 세로선 = 10mm 성공 기준)
-        for i in (1, 2, 3):
+        floors = self.sim.floors
+        bw, step = (105, 316) if len(floors) <= 3 else (52, 158)
+        for i in floors:
             cur = self.sim.button_disp(i) * 1000
             pk = self.sim.peak[i] * 1000
-            dr.rectangle([x0, y + 82, x0 + 105, y + 104], outline=(120, 120, 120))
-            dr.rectangle([x0, y + 82, x0 + int(105 * min(max(cur, 0.0), 15) / 15), y + 104], fill=BTN_COLORS[i])
-            dr.line([x0 + 70, y + 80, x0 + 70, y + 106], fill=(255, 255, 255))
-            f.draw(dr, (x0 + 111, y + 83), f"{i}층 {cur:4.1f} / max {pk:4.1f}mm", (230, 230, 230))
-            x0 += 316
+            col = BTN_COLORS.get(i, (230, 160, 50)) if len(floors) <= 3 else (230, 160, 50)
+            dr.rectangle([x0, y + 82, x0 + bw, y + 104], outline=(120, 120, 120))
+            dr.rectangle([x0, y + 82, x0 + int(bw * min(max(cur, 0.0), 15) / 15), y + 104], fill=col)
+            dr.line([x0 + int(bw * 10 / 15), y + 80, x0 + int(bw * 10 / 15), y + 106], fill=(255, 255, 255))
+            txt = f"{i}층 {cur:4.1f} / max {pk:4.1f}mm" if len(floors) <= 3 else f"{i}층 {pk:4.1f}"
+            f.draw(dr, (x0 + bw + 6, y + 83), txt, (230, 230, 230))
+            x0 += step
+        if self.mobile:
+            j = self.sim.n_collision_steps
+            f.draw(dr, (420, y + 52), f"충돌 {'없음' if j == 0 else str(j) + ' steps'}", (255, 120, 120) if j else (160, 230, 160))
         if self.result is not None:
             ok = self.result.get("ok")
             label = self.result.get("label", "SUCCESS" if ok else "FAIL")
             color = (60, 220, 90) if ok else (240, 70, 70)
             dr.rectangle([8, 36, 360, 84], fill=(0, 0, 0))
             self.font_big.draw(dr, (16, 40), label, color)
+
+    def _minimap(self, obs):
+        """오른쪽 위 미니맵: 라이다 점유격자(검정) + 계획 경로(파랑) + 휠체어(빨강) + 목표(주황)."""
+        sim = self.sim
+        x0, x1, y0, y1 = -1.0, 8.0, -0.6, 4.2
+        W_, H_ = 216, int(216 * (y1 - y0) / (x1 - x0))
+        mm = Image.new("RGB", (W_, H_), (245, 245, 245))
+        dr = ImageDraw.Draw(mm)
+
+        def px(p):
+            return ((p[0] - x0) / (x1 - x0) * W_, (y1 - p[1]) / (y1 - y0) * H_)
+        if self.grid is not None:
+            occ = self.grid.occ.T[::-1]
+            im = Image.fromarray(np.where(occ, 40, 245).astype(np.uint8)).resize((W_, H_), Image.NEAREST)
+            mm = Image.merge("RGB", [im] * 3)
+            dr = ImageDraw.Draw(mm)
+        if self.nav_path is not None and len(self.nav_path) > 1:
+            dr.line([px(p) for p in self.nav_path], fill=(0, 90, 255), width=2)
+        if self.goal is not None:
+            gx, gy = px(self.goal)
+            dr.ellipse([gx - 3, gy - 3, gx + 3, gy + 3], outline=(255, 140, 0), width=2)
+        x, y, th = sim.base_pose()
+        cx, cy = px((x, y))
+        dr.ellipse([cx - 4, cy - 4, cx + 4, cy + 4], fill=(220, 40, 40))
+        hx, hy = px((x + 0.4 * np.cos(th), y + 0.4 * np.sin(th)))
+        dr.line([cx, cy, hx, hy], fill=(220, 40, 40), width=2)
+        out = obs.copy()
+        out[4:4 + H_, 640 - W_ - 4:640 - 4] = np.asarray(mm)
+        return out
 
     def hold(self, seconds: float = 1.5):
         """마지막 화면(결과 표시)을 잠시 유지."""

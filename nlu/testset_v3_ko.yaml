@@ -1,0 +1,27 @@
+# scene_v3 명령 해석 테스트셋: 주행 + 6층 건물(1~6층) + 숫자 버튼(색 구분 없음).
+# 평가용 문장(eval/eval_config_v3.yaml 의 commands)은 여기에 넣지 않는다.
+# category: paraphrase | forbidden | impossible | ambiguous
+- {text: "엘리베이터로 가서 3층 눌러줘", intent: press, floor: 3, category: paraphrase}
+- {text: "엘리베이터 앞까지 가서 5층 버튼 좀 눌러 줄래?", intent: press, floor: 5, category: paraphrase}
+- {text: "6층으로 가고 싶어", intent: press, floor: 6, category: paraphrase}
+- {text: "사층 버튼 부탁해", intent: press, floor: 4, category: paraphrase}
+- {text: "엘리베이터 타러 가자, 2층이야", intent: press, floor: 2, category: paraphrase}
+- {text: "1층 선택해 줘", intent: press, floor: 1, category: paraphrase}
+- {text: "오층 눌러", intent: press, floor: 5, category: paraphrase}
+- {text: "Go to the elevator and press 4", intent: press, floor: 4, category: paraphrase}
+- {text: "3층 말고 6층 눌러줘", intent: press, floor: 6, category: paraphrase}
+- {text: "Press the button for floor 2", intent: press, floor: 2, category: paraphrase}
+- {text: "엘리베이터 앞에서 기다려", intent: wait, category: forbidden}
+- {text: "아직 출발하지 말고 대기해", intent: wait, category: forbidden}
+- {text: "버튼은 누르지 마", intent: wait, category: forbidden}
+- {text: "멈춰!", intent: wait, category: forbidden}
+- {text: "4층 버튼은 절대 누르지 마", intent: wait, category: forbidden}
+- {text: "7층 눌러줘", intent: reject, category: impossible}
+- {text: "지하 2층 버튼 눌러", intent: reject, category: impossible}
+- {text: "물 좀 가져다줘", intent: reject, category: impossible}
+- {text: "창문 열어줘", intent: reject, category: impossible}
+- {text: "12층으로 가자", intent: reject, category: impossible}
+- {text: "빨간 버튼 눌러줘", intent: clarify, category: ambiguous}
+- {text: "엘리베이터 버튼 눌러줘", intent: clarify, category: ambiguous}
+- {text: "2층이랑 5층 눌러", intent: clarify, category: ambiguous}
+- {text: "엘리베이터로 가줘", intent: clarify, category: ambiguous}

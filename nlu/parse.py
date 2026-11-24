@@ -13,15 +13,17 @@ from nlu.rules import parse_rules
 from nlu.validate import validate
 
 
-def parse_command(text: str, mode: str = "rules+llm", scene_floors=(1, 2, 3)) -> tuple[dict, dict]:
+def parse_command(text: str, mode: str = "rules+llm", scene_floors=(1, 2, 3), scene: str = "v2") -> tuple[dict, dict]:
+    """scene="v3": 버튼 색 매핑 끔, LLM 프롬프트에 꼭대기층=max(scene_floors)·주행 안내."""
     t0 = time.perf_counter()
-    rule = parse_rules(text)
+    v3 = scene == "v3"
+    rule = parse_rules(text, use_color=not v3)
     meta = {"parser": "rules", "llm_ms": None, "rule": {k: rule[k] for k in ("intent", "floor", "floors", "block", "confident")},
             "llm": None, "llm_error": None}
     llm = None
     if mode == "rules+llm" and not rule["block"]:
         from nlu.llm_ollama import parse_llm
-        llm, lm = parse_llm(text)
+        llm, lm = parse_llm(text, top_floor=max(scene_floors), mobile=v3)
         meta["llm_ms"] = lm["llm_ms"]
         meta["llm_model"] = lm["model"]
         if llm is None:

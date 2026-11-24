@@ -37,15 +37,22 @@ def _locator(runner, sim):
 def run_episode(command: str, seed: int, condition: str = "base", floor: int | None = None,
                 expect: dict | None = None, parser: str = "rules+llm", runner: str = "ik_gt",
                 video: str | Path | None = None, act_policy=None, task_override: dict | None = None,
-                run_name: str | None = None, split: str | None = None) -> dict:
+                run_name: str | None = None, split: str | None = None, scene: str = "v2") -> dict:
     """expect: 정답 {"intent", "floor"}. 없으면 해석 결과를 정답으로 간주(데모용).
-    task_override: 해석을 건너뛰고 이 작업 JSON 으로 실행(되묻기 후 확정된 작업 등)."""
-    sim = make_scene(seed, condition, floor=floor)
+    task_override: 해석을 건너뛰고 이 작업 JSON 으로 실행(되묻기 후 확정된 작업 등).
+    scene: "v2" 고정 휠체어 3버튼(기존) | "v3" 주행 + 6버튼 숫자 (mission/fsm.py)."""
+    if scene == "v3":
+        from sim.world import BUILDING_FLOORS, make_world
+        sim = make_world(seed, condition, floor=floor)
+        floors = BUILDING_FLOORS
+    else:
+        sim = make_scene(seed, condition, floor=floor)
+        floors = FLOORS
     t_wall0 = time.perf_counter()
     if task_override is not None:
         task, meta = task_override, {"parser": "given", "llm_ms": None}
     else:
-        task, meta = parse_command(command, parser, scene_floors=FLOORS)
+        task, meta = parse_command(command, parser, scene_floors=floors, scene=scene)
     t_parse = time.perf_counter() - t_wall0
 
     rec = None
@@ -58,7 +65,10 @@ def run_episode(command: str, seed: int, condition: str = "base", floor: int | N
         rec.capture()
     status = rec.set_status if rec else None
 
-    if runner == "act" and task["intent"] == "press":
+    if scene == "v3":
+        from mission.fsm import run_mission
+        res = run_mission(task, sim, runner=runner, status=status)
+    elif runner == "act" and task["intent"] == "press":
         from policy.act_runner import execute_policy
         res = execute_policy(task, sim, act_policy, status=status)
     else:
@@ -94,8 +104,13 @@ def run_episode(command: str, seed: int, condition: str = "base", floor: int | N
         # 작업 수행 시간 = 명령 해석(실제 벽시계) + 로봇 동작(시뮬레이션 시간)
         "t_task_s": round(t_parse + res["t_task"], 3), "t_parse_s": round(t_parse, 3), "t_motion_s": res["t_task"],
         "policy_ms": res.get("policy_ms"), "policy_ms_max": res.get("policy_ms_max"), "perception": res.get("perception"), "ik": res.get("ik"),
-        "wall_s": round(time.perf_counter() - t_wall0, 2), "video": None,
+        "wall_s": round(time.perf_counter() - t_wall0, 2), "video": None, "scene": scene,
     }
+    if scene == "v3":  # 서브태스크 지표
+        out.update({"collisions": j.get("collisions"), "nav": res.get("nav"), "dock": res.get("dock"),
+                    "digits": res.get("digits"), "press": res.get("press"), "layout": list(sim.layout),
+                    "message": res.get("message"),
+                    "stages": [(s_["stage"], s_["t"]) for s_ in res.get("stages", [])]})
     if rec:
         if exp["intent"] == "press":
             label = "SUCCESS" if success else f"FAIL: {out['fail_type']}"
@@ -111,6 +126,11 @@ def run_episode(command: str, seed: int, condition: str = "base", floor: int | N
 
 
 def close_all():
+    try:
+        from mission.fsm import close_all as _close_mission
+        _close_mission()
+    except Exception:
+        pass
     for v in _cache.values():
         if hasattr(v, "close"):
             v.close()

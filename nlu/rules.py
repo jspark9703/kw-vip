@@ -1,6 +1,7 @@
 """규칙 기반 파서.  역할 두 가지:
  1) 안전장치: 부정·대기·정지 표현을 먼저 걸러낸다 (LLM 결과보다 항상 우선).
  2) 단독 파서: 층수(숫자·한글 숫자·서수·버튼 색)와 누르기 동사를 뽑는다.
+    버튼 색 -> 층 매핑은 scene_v2(색 버튼) 전용. scene_v3 는 버튼 색이 모두 같아 use_color=False (색 요청은 되묻기).
 
 parse_rules(text) -> {"intent", "floor", "reason", "floors": [...], "block": bool, "confident": bool}
   block=True     : 부정·대기 판정 (validate 가 무조건 wait 로 확정)
@@ -49,7 +50,7 @@ def _ko_number(tok: str) -> int | None:
     return KO_NUM[tok] if len(tok) == 1 else None
 
 
-def extract_floors(text: str) -> tuple[list[int], list[int]]:
+def extract_floors(text: str, use_color: bool = True) -> tuple[list[int], list[int]]:
     """(언급된 층 목록, '말고'로 제외된 층 목록). 순서 유지, 중복 제거."""
     t = text.lower()
     found: list[tuple[int, int]] = []  # (위치, 층)
@@ -77,7 +78,7 @@ def extract_floors(text: str) -> tuple[list[int], list[int]]:
         if key in ORDINAL:
             found.append((mm.start(), ORDINAL[key]))
     # 버튼 색 (scene_v2: 1층 빨강, 2층 초록, 3층 파랑)
-    for fl, pat in COLOR.items():
+    for fl, pat in (COLOR.items() if use_color else ()):
         for mm in re.finditer(pat, t):
             found.append((mm.start(), fl))
     out: list[int] = []
@@ -98,8 +99,8 @@ def is_negated(text: str) -> bool:
     return has_any(NEG_PATTERNS, t)
 
 
-def parse_rules(text: str) -> dict:
-    floors, excluded = extract_floors(text)
+def parse_rules(text: str, use_color: bool = True) -> dict:
+    floors, excluded = extract_floors(text, use_color)
     press = has_any(PRESS_PATTERNS, text)
     context = has_any(CONTEXT_PATTERNS, text) or bool(floors)
     res = {"floors": floors, "excluded": excluded, "press_verb": press, "block": False, "confident": False}

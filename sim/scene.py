@@ -26,6 +26,16 @@ ARM_JOINTS = [f"joint{i}" for i in range(1, 7)]
 _MODEL_CACHE: dict[str, tuple[mujoco.MjModel, np.ndarray]] = {}
 
 
+def model_floors(m: mujoco.MjModel) -> tuple[int, ...]:
+    """모델에 있는 버튼 층 번호 (button_<n>_slide 관절 이름에서)."""
+    out = []
+    for j in range(m.njnt):
+        name = m.joint(j).name
+        if name.startswith("button_") and name.endswith("_slide"):
+            out.append(int(name[len("button_"):-len("_slide")]))
+    return tuple(sorted(out))
+
+
 def sample_panel_offset(rng: np.random.Generator, condition: str) -> tuple[np.ndarray, str]:
     """조건별 패널 오프셋 [dx, dy, dz] (m) 와 설명 문자열."""
     if condition in ("train", "base"):
@@ -65,10 +75,13 @@ class Sim:
 
     def __post_init__(self):
         m = self.model
-        self.slide_adr = {i: m.joint(f"button_{i}_slide").qposadr[0] for i in FLOORS}
+        self.floors = model_floors(m)
+        self.slide_adr = {i: m.joint(f"button_{i}_slide").qposadr[0] for i in self.floors}
         self.arm_qadr = np.array([m.joint(j).qposadr[0] for j in ARM_JOINTS])
         self.grip_qadr = m.joint("joint7").qposadr[0]
-        self.peak = {i: 0.0 for i in FLOORS}
+        self.arm_act = np.array([m.actuator(j).id for j in ARM_JOINTS])  # 위치 서보 ctrl 인덱스
+        self.grip_act = m.actuator("gripper").id
+        self.peak = {i: 0.0 for i in self.floors}
         self.dt = m.opt.timestep
 
     # --- 상태 ---
@@ -90,7 +103,7 @@ class Sim:
     def step(self, n: int = 1):
         for _ in range(n):
             mujoco.mj_step(self.model, self.data)
-            for i in FLOORS:
+            for i in self.floors:
                 v = self.data.qpos[self.slide_adr[i]]
                 if v > self.peak[i]:
                     self.peak[i] = float(v)
@@ -100,7 +113,7 @@ class Sim:
     def judge(self, floor: int | None) -> dict:
         """성공 판정: 목표 버튼 최대 변위 >= 10mm 이고 다른 버튼 < 3mm.
         floor=None(움직이면 안 되는 명령)이면 모든 버튼 < 3mm 일 때 '정상(미동작)'."""
-        mm = {i: self.peak[i] * 1000 for i in FLOORS}
+        mm = {i: self.peak[i] * 1000 for i in self.floors}
         if floor is None:
             other = max(mm.values())
             return {"success": other < 3.0, "peak_mm": 0.0, "other_mm": round(other, 2), "peaks_mm": mm}
@@ -122,7 +135,7 @@ def make_scene(seed: int, condition: str = "train", floor: int | None = None,
     d = mujoco.MjData(m)
     mujoco.mj_forward(m, d)
     # 위치 서보 목표 = 현재 자세, 그리퍼 0(닫힘)에서 시작 -> 시작 직후 팔이 튀지 않음
-    d.ctrl[:6] = d.qpos[[m.joint(j).qposadr[0] for j in ARM_JOINTS]]
-    d.ctrl[6] = 0.0
+    d.ctrl[[m.actuator(j).id for j in ARM_JOINTS]] = d.qpos[[m.joint(j).qposadr[0] for j in ARM_JOINTS]]
+    d.ctrl[m.actuator("gripper").id] = 0.0
     return Sim(model=m, data=d, seed=seed, condition=condition, floor=floor,
                panel_offset=off, offset_kind=kind)

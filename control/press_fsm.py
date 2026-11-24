@@ -59,15 +59,15 @@ class PressExecutor:
             raise _Timeout()
 
     def move_ctrl(self, q_goal, T, grip=None):
-        d = self.sim.data
-        q0 = d.ctrl[:6].copy()
-        g0 = d.ctrl[6]
+        d, ia, ig = self.sim.data, self.sim.arm_act, self.sim.grip_act
+        q0 = d.ctrl[ia].copy()
+        g0 = d.ctrl[ig]
         n = max(1, int(round(T / self.sim.dt)))
         for k in range(n):
             s = _smooth((k + 1) / n)
-            d.ctrl[:6] = (1 - s) * q0 + s * q_goal
+            d.ctrl[ia] = (1 - s) * q0 + s * q_goal
             if grip is not None:
-                d.ctrl[6] = (1 - s) * g0 + s * grip
+                d.ctrl[ig] = (1 - s) * g0 + s * grip
             self.sim.step()
             if k % 50 == 0:
                 self._check_timeout()
@@ -92,6 +92,7 @@ class PressExecutor:
     def plan(self, face, into, rng):
         c = self.cfg
         pre = face - c.approach_dist * into
+        self.ik.sync(self.sim.data)  # 현재 베이스 자세 기준으로 IK
         r = self.ik.solve(pre, into, q_seed=self.sim.arm_q(), rng=rng, n_starts=c.ik_starts)
         if not r.ok(c.ik_pos_tol, c.ik_ang_tol):
             return None, {"why": "approach_unreachable", "pos_err_mm": r.pos_err * 1e3, "ang_err_deg": r.ang_err_deg}
@@ -110,7 +111,7 @@ class PressExecutor:
         out = {"fail_type": None, "perception": None, "ik": None}
         try:
             self.stage("CLOSE_GRIPPER")
-            self.move_ctrl(sim.data.ctrl[:6].copy(), c.t_close, grip=0.0)
+            self.move_ctrl(sim.data.ctrl[sim.arm_act].copy(), c.t_close, grip=0.0)
 
             self.stage("PERCEIVE")
             tgt = locate(sim, floor)
@@ -148,7 +149,7 @@ class PressExecutor:
     def run_idle(self) -> dict:
         """wait / reject / clarify: 팔을 움직이지 않고 관찰만 한다."""
         self.stage("IDLE")
-        self.move_ctrl(self.sim.data.ctrl[:6].copy(), self.cfg.t_idle)
+        self.move_ctrl(self.sim.data.ctrl[self.sim.arm_act].copy(), self.cfg.t_idle)
         return self._finish(None, {"fail_type": None})
 
     def _finish(self, floor, out):

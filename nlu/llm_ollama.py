@@ -46,8 +46,17 @@ FEWSHOT = [
 ]
 
 
-def _messages(text: str) -> list[dict]:
-    msgs = [{"role": "system", "content": SYSTEM}]
+def _system(top_floor: int = 3, mobile: bool = False) -> str:
+    """장면별 시스템 프롬프트: 꼭대기층 번호, 주행 여부(scene_v3: 엘리베이터까지 이동한 뒤 누름)."""
+    s = SYSTEM.replace("이 장면에서 3층", f"이 장면에서 {top_floor}층")
+    if mobile:
+        s = s.replace("'엘리베이터 버튼 하나 누르기'뿐이다.",
+                      "'엘리베이터 앞까지 이동해서 버튼 하나 누르기'뿐이다. '엘리베이터로 가서 N층' 도 press 다.")
+    return s
+
+
+def _messages(text: str, top_floor: int = 3, mobile: bool = False) -> list[dict]:
+    msgs = [{"role": "system", "content": _system(top_floor, mobile)}]
     for u, a in FEWSHOT:
         msgs.append({"role": "user", "content": u})
         msgs.append({"role": "assistant", "content": json.dumps(a, ensure_ascii=False)})
@@ -64,11 +73,11 @@ def available(timeout: float = 2.0) -> bool:
         return False
 
 
-def parse_llm(text: str, model: str | None = None) -> tuple[dict | None, dict]:
+def parse_llm(text: str, model: str | None = None, top_floor: int = 3, mobile: bool = False) -> tuple[dict | None, dict]:
     """-> (task 또는 None, meta{llm_ms, model, raw, error})"""
     model = model or MODEL
     meta = {"model": model, "llm_ms": None, "raw": None, "error": None}
-    body = {"model": model, "messages": _messages(text), "stream": False,
+    body = {"model": model, "messages": _messages(text, top_floor, mobile), "stream": False,
             "format": JSON_SCHEMA, "options": {"temperature": 0, "num_predict": 80}, "keep_alive": "30m"}
     t0 = time.perf_counter()
     try:

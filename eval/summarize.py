@@ -38,11 +38,65 @@ def summarize(trials):
         "perception_err_mm_median": _median([(t.get("perception") or {}).get("err_mm") for t in trials]),
         "parsers_used": dict(Counter(t["parser"] for t in trials)),
     }
+    for sp in sorted({t["split"] for t in trials} - {"base", "variation", "commands"}):   # 추가 split (반복·한계)
+        rows = [t for t in trials if t["split"] == sp]
+        s[f"sr_{sp}"] = _sr(rows)
+        s[f"n_{sp}"] = len(rows)
+        s[f"fail_types_{sp}"] = dict(Counter(t["fail_type"] for t in rows if not t["success"]))
+        if rows and rows[0].get("scene") == "v3":
+            s[f"subtasks_{sp}"] = subtasks(rows)
+    v3 = [t for t in both if t.get("scene") == "v3"]
+    if v3:
+        s["subtasks"] = subtasks(v3)
     return s
 
 
+def subtasks(rows):
+    """scene_v3 서브태스크별 지표 (주행·도킹·숫자 판독·누르기·판단)."""
+    n = len(rows)
+    dock_ok = [t for t in rows if (t.get("dock") or {}).get("ok")]
+    dig = [t["digits"] for t in rows if t.get("digits")]
+    pr = [t["press"] for t in rows if t.get("press")]
+    ver = [p["verify"] for p in pr if p.get("verify")]
+
+    def stage_t(t, name):
+        return next((tt for st, tt in t.get("stages", []) if st == name), None)
+    return {
+        "n": n,
+        "nav_dock_reached": f"{len(dock_ok)}/{n}",
+        "collision_trials": sum(1 for t in rows if (t.get("collisions") or 0) > 0),
+        "replans_median": _median([(t.get("nav") or {}).get("replans") for t in rows]),
+        "estops_total": sum((t.get("nav") or {}).get("estops") or 0 for t in rows),
+        "travel_m_median": _median([(t.get("nav") or {}).get("traveled_m") for t in rows]),
+        "panel_err_mm_median": _median([((t.get("dock") or {}).get("panel_refined") or (t.get("dock") or {}).get("panel_first") or {}).get("err_mm") for t in rows]),
+        "dock_err_mm_median": _median([(t.get("dock") or {}).get("dock_err_gt_mm") for t in dock_ok]),
+        "back_side_approach": sum(1 for t in dock_ok if t["dock"].get("side") == "back"),
+        "digit_correct": f"{sum(d.get('correct', 0) for d in dig)}/{sum(d.get('n_panel', 6) for d in dig)}",
+        "press_attempts_mean": round(statistics.mean([p["n_attempts"] for p in pr]), 2) if pr else None,
+        "press_retry_trials": sum(1 for p in pr if p["n_attempts"] > 1),
+        "lamp_sensor_agree": f"{sum(bool(v.get('agree')) for v in ver)}/{len(ver)}",
+        "t_reach_panel_s_median": _median([stage_t(t, "OBSERVE") for t in rows]),
+        "t_press_phase_s_median": _median([(t["t_motion_s"] - stage_t(t, "OBSERVE")) if stage_t(t, "OBSERVE") is not None else None for t in rows]),
+    }
+
+
+def subtask_table(summaries):
+    keys = [("nav_dock_reached", "도킹 도달"), ("collision_trials", "충돌 시도"), ("estops_total", "비상정지"),
+            ("travel_m_median", "주행 거리"), ("panel_err_mm_median", "패널 오차mm"), ("dock_err_mm_median", "도킹 오차mm"),
+            ("back_side_approach", "반대쪽 접근"), ("digit_correct", "숫자 판독"), ("press_attempts_mean", "평균 시도"),
+            ("press_retry_trials", "재시도 시도"), ("lamp_sensor_agree", "램프=센서"),
+            ("t_reach_panel_s_median", "패널 도착s"), ("t_press_phase_s_median", "누르기 단계s")]
+    rows = [s for s in summaries if s.get("subtasks")]
+    if not rows:
+        return ""
+    out = ["| 실행부 | " + " | ".join(k[1] for k in keys) + " |", "|---" * (len(keys) + 1) + "|"]
+    for s in rows:
+        out.append(f"| {s['run']} | " + " | ".join(str(s["subtasks"].get(k[0])) for k in keys) + " |")
+    return "\n".join(out)
+
+
 def table(summaries):
-    hdr = "| 실행부 | 기본 SR | 변화 SR | 전체 SR | 일반화 격차 | 성공 시 시간(중앙값) | 추론 지연 | 명령 적합성(5회) | 주요 실패 유형 |\n|---|---|---|---|---|---|---|---|---|"
+    hdr = "| 실행부 | 기본 SR | 변화 SR | 전체 SR | 일반화 격차 | 성공 시 시간(중앙값) | 추론 지연 | 명령 적합성 | 주요 실패 유형 |\n|---|---|---|---|---|---|---|---|---|"
     lines = [hdr]
     for s in summaries:
         lat = []
@@ -64,3 +118,12 @@ if __name__ == "__main__":
         s["run"] = rows[0]["run"] if rows else Path(p).parent.name
         sums.append(s)
     print(table(sums))
+    st = subtask_table(sums)
+    if st:
+        print("\n서브태스크 (scene v3, 기본+변화 시도)\n" + st)
+    for s in sums:
+        for k in sorted(k for k in s if k.startswith("sr_") and k not in ("sr_base", "sr_variation", "sr_total")):
+            sp = k[3:]
+            print(f"\n[{s['run']}] 추가 split '{sp}': SR {s[k]}% (n={s[f'n_{sp}']}), 실패 {s.get(f'fail_types_{sp}')}")
+            if s.get(f"subtasks_{sp}"):
+                print(subtask_table([{"run": f"{s['run']}/{sp}", "subtasks": s[f"subtasks_{sp}"]}]))
