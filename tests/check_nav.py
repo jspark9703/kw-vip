@@ -17,7 +17,7 @@ import numpy as np  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
 from nav.dock import dock, find_and_dock  # noqa: E402
-from models.make_scene_v3 import PANEL_NOMINAL  # noqa: E402
+from mission.fsm import PRIOR_LOCK  # noqa: E402
 from nav.follower import Navigator, summary  # noqa: E402
 from nav.grid import gt_grid  # noqa: E402
 from sim.world import dock_pose, make_world  # noqa: E402
@@ -58,16 +58,15 @@ def run(seed, cond, save_map=False, camera=False):
     sim = make_world(seed, cond)
     traj = []
     sim.step_hooks.append(lambda s: traj.append(s.base_pose()[:2].copy()) if len(traj) == 0 or s.data.time % 0.1 < s.dt else None)
-    panel = sim.data.xpos[sim.model.body("elevator_panel").id].copy()
-    dk = dock_pose(panel)
+    dk = dock_pose(sim.lock_pos())
     nav = Navigator(sim)
     t = time.time()
     if camera:
         from perception.panel import PanelLocator
         key = id(sim.model)
         if key not in _LOC:
-            _LOC[key] = PanelLocator(sim.model)
-        r = find_and_dock(nav, _LOC[key], PANEL_NOMINAL)   # 사전정보 = 명목 패널 위치만
+            _LOC[key] = PanelLocator(sim.model, prior=PRIOR_LOCK)
+        r = find_and_dock(nav, _LOC[key], PRIOR_LOCK)   # 사전정보 = 우리 집 도어락 명목 위치만
     else:
         r = dock(nav, dk)
     j = sim.judge(None)
@@ -87,7 +86,7 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="*")
     ap.add_argument("--conds", nargs="+", default=["base", "variation"])
     ap.add_argument("--maps", type=int, default=3, help="조건별 처음 몇 개의 지도 그림 저장")
-    ap.add_argument("--camera", action="store_true", help="도킹 목표를 head 카메라 패널 인식으로 (Step 4)")
+    ap.add_argument("--camera", action="store_true", help="도킹 목표를 head 카메라 도어락 인식으로")
     a = ap.parse_args()
     rows = []
     for cond in a.conds:

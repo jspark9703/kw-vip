@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from models.make_scene_v3 import LIDAR_POS, N_LIDAR
+from models.make_scene_v4 import LIDAR_POS, N_LIDAR
 
 ANGLES = 2 * np.pi * np.arange(N_LIDAR) / N_LIDAR
 MAX_RANGE = 6.0

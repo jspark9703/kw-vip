@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  kw-vip scene_v3 (models/make_scene_v3.py): mobile base + elevator hall.
+  kw-vip scene_v4 (models/make_scene_v4.py): mobile base + apartment corridor + door lock keypad.
   Educational low-poly assembly: simplified FIXED powered-wheelchair +
   AgileX PiPER joint chain, actuator ranges and joint transforms transcribed
   from the MIT-licensed MuJoCo Menagerie AgileX PiPER model (RosenYin, 2024).
   Primitive geometry is an educational approximation, not official CAD.
   Not a human-use safety model; PiPER finger dynamics are simplified.
 -->
-<mujoco model="wheelchair_piper_v3">
+<mujoco model="wheelchair_piper_v4">
   <compiler angle="radian" autolimits="true" texturedir="../assets/textures"/>
   <option timestep="0.002" integrator="implicitfast" cone="elliptic" impratio="10"/>
   <statistic extent="5" center="3.5 1.8 1"/>
   <visual>
     <map znear="0.002"/>
+    <quality shadowsize="4096"/>
+    <global offwidth="1280" offheight="960"/>
   </visual>
   <default>
     <geom friction="0.8 0.005 0.0001" condim="3"/>
@@ -20,7 +22,10 @@
       <geom contype="2" conaffinity="2"/>
     </default>
     <default class="wall">
-      <geom contype="4" conaffinity="2" rgba=".86 .84 .78 1"/>
+      <geom contype="4" conaffinity="2" rgba=".90 .88 .83 1"/>
+    </default>
+    <default class="decor">
+      <geom contype="0" conaffinity="0" mass="0"/>
     </default>
     <default class="piper">
       <joint frictionloss="0.3" armature="0.005" damping="0.15"/>
@@ -40,101 +45,127 @@
     <material name="tyre" rgba="0.09 0.105 0.12 1"/>
     <material name="piper_red" rgba="0.86 0.18 0.17 1"/>
     <material name="piper_gray" rgba="0.70 0.74 0.77 1"/>
-    <texture name="digit_1" type="2d" file="digit_1.png"/>
-    <material name="digit_1" texture="digit_1"/>
-    <texture name="digit_2" type="2d" file="digit_2.png"/>
-    <material name="digit_2" texture="digit_2"/>
-    <texture name="digit_3" type="2d" file="digit_3.png"/>
-    <material name="digit_3" texture="digit_3"/>
-    <texture name="digit_4" type="2d" file="digit_4.png"/>
-    <material name="digit_4" texture="digit_4"/>
-    <texture name="digit_5" type="2d" file="digit_5.png"/>
-    <material name="digit_5" texture="digit_5"/>
-    <texture name="digit_6" type="2d" file="digit_6.png"/>
-    <material name="digit_6" texture="digit_6"/>
+    <texture name="key_1" type="2d" file="key_1.png"/>
+    <material name="key_1" texture="key_1" emission=".15"/>
+    <texture name="key_2" type="2d" file="key_2.png"/>
+    <material name="key_2" texture="key_2" emission=".15"/>
+    <texture name="key_3" type="2d" file="key_3.png"/>
+    <material name="key_3" texture="key_3" emission=".15"/>
+    <texture name="key_4" type="2d" file="key_4.png"/>
+    <material name="key_4" texture="key_4" emission=".15"/>
+    <texture name="key_5" type="2d" file="key_5.png"/>
+    <material name="key_5" texture="key_5" emission=".15"/>
+    <texture name="key_6" type="2d" file="key_6.png"/>
+    <material name="key_6" texture="key_6" emission=".15"/>
+    <texture name="key_7" type="2d" file="key_7.png"/>
+    <material name="key_7" texture="key_7" emission=".15"/>
+    <texture name="key_8" type="2d" file="key_8.png"/>
+    <material name="key_8" texture="key_8" emission=".15"/>
+    <texture name="key_9" type="2d" file="key_9.png"/>
+    <material name="key_9" texture="key_9" emission=".15"/>
+    <texture name="key_star" type="2d" file="key_star.png"/>
+    <material name="key_star" texture="key_star" emission=".15"/>
+    <texture name="key_0" type="2d" file="key_0.png"/>
+    <material name="key_0" texture="key_0" emission=".15"/>
+    <texture name="key_hash" type="2d" file="key_hash.png"/>
+    <material name="key_hash" texture="key_hash" emission=".15"/>
+    <texture name="unit_1203" type="2d" file="unit_1203.png"/>
+    <material name="unit_1203" texture="unit_1203"/>
+    <texture name="unit_1202" type="2d" file="unit_1202.png"/>
+    <material name="unit_1202" texture="unit_1202"/>
+    <texture name="unit_1205" type="2d" file="unit_1205.png"/>
+    <material name="unit_1205" texture="unit_1205"/>
+    <texture name="unit_1204" type="2d" file="unit_1204.png"/>
+    <material name="unit_1204" texture="unit_1204"/>
+    <texture name="fire_sign" type="2d" file="fire.png"/>
+    <material name="fire_sign" texture="fire_sign"/>
+    <texture name="floor_tile" type="2d" builtin="checker" rgb1=".74 .72 .67" rgb2=".70 .68 .63" width="512" height="512"/>
+    <material name="floor_tile" texture="floor_tile" texrepeat="12 6" reflectance=".02"/>
+    <material name="wall_paint" rgba=".92 .90 .85 1"/>
+    <material name="glow_light" rgba="1 .98 .92 1" emission="1"/>
+    <material name="glow_window" rgba=".70 .82 .95 1" emission=".6"/>
+    <material name="glow_exit" rgba=".10 .70 .30 1" emission=".8"/>
   </asset>
   <worldbody>
-    <light name="keylight" pos="0 -2 3.5" dir="0 .3 -1" diffuse=".88 .88 .88"/>
-    <light name="fill" pos="-2 2 3" dir=".4 -.3 -1" diffuse=".4 .45 .5"/>
-    <geom name="floor" type="plane" pos="3.5 1.8 0" size="4.5 2.5 .1" rgba=".91 .93 .96 1"/>
+    <geom name="floor" type="plane" pos="3.5 1.8 0" size="4.5 2.5 .1" material="floor_tile"/>
     <body name="wheelchair_base" pos="0 0 0" childclass="chair">
       <inertial pos=".02 0 .40" mass="120" diaginertia="7 9 11"/>
       <joint name="base_x" type="slide" axis="1 0 0" damping="5"/>
       <joint name="base_y" type="slide" axis="0 1 0" damping="5"/>
       <joint name="base_yaw" type="hinge" axis="0 0 1" damping="2"/>
       <site name="base_site" pos="0 0 .05" size=".02" rgba=".1 .5 1 .6"/>
-      <site name="lidar_00" pos="0.06 -0.03 0.45" size=".005" zaxis="1.00000 0.00000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_01" pos="0.06 -0.03 0.45" size=".005" zaxis="0.99619 0.08716 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_02" pos="0.06 -0.03 0.45" size=".005" zaxis="0.98481 0.17365 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_03" pos="0.06 -0.03 0.45" size=".005" zaxis="0.96593 0.25882 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_04" pos="0.06 -0.03 0.45" size=".005" zaxis="0.93969 0.34202 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_05" pos="0.06 -0.03 0.45" size=".005" zaxis="0.90631 0.42262 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_06" pos="0.06 -0.03 0.45" size=".005" zaxis="0.86603 0.50000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_07" pos="0.06 -0.03 0.45" size=".005" zaxis="0.81915 0.57358 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_08" pos="0.06 -0.03 0.45" size=".005" zaxis="0.76604 0.64279 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_09" pos="0.06 -0.03 0.45" size=".005" zaxis="0.70711 0.70711 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_10" pos="0.06 -0.03 0.45" size=".005" zaxis="0.64279 0.76604 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_11" pos="0.06 -0.03 0.45" size=".005" zaxis="0.57358 0.81915 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_12" pos="0.06 -0.03 0.45" size=".005" zaxis="0.50000 0.86603 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_13" pos="0.06 -0.03 0.45" size=".005" zaxis="0.42262 0.90631 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_14" pos="0.06 -0.03 0.45" size=".005" zaxis="0.34202 0.93969 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_15" pos="0.06 -0.03 0.45" size=".005" zaxis="0.25882 0.96593 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_16" pos="0.06 -0.03 0.45" size=".005" zaxis="0.17365 0.98481 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_17" pos="0.06 -0.03 0.45" size=".005" zaxis="0.08716 0.99619 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_18" pos="0.06 -0.03 0.45" size=".005" zaxis="0.00000 1.00000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_19" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.08716 0.99619 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_20" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.17365 0.98481 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_21" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.25882 0.96593 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_22" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.34202 0.93969 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_23" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.42262 0.90631 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_24" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.50000 0.86603 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_25" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.57358 0.81915 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_26" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.64279 0.76604 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_27" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.70711 0.70711 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_28" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.76604 0.64279 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_29" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.81915 0.57358 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_30" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.86603 0.50000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_31" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.90631 0.42262 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_32" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.93969 0.34202 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_33" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.96593 0.25882 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_34" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.98481 0.17365 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_35" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.99619 0.08716 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_36" pos="0.06 -0.03 0.45" size=".005" zaxis="-1.00000 0.00000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_37" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.99619 -0.08716 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_38" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.98481 -0.17365 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_39" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.96593 -0.25882 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_40" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.93969 -0.34202 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_41" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.90631 -0.42262 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_42" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.86603 -0.50000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_43" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.81915 -0.57358 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_44" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.76604 -0.64279 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_45" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.70711 -0.70711 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_46" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.64279 -0.76604 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_47" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.57358 -0.81915 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_48" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.50000 -0.86603 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_49" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.42262 -0.90631 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_50" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.34202 -0.93969 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_51" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.25882 -0.96593 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_52" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.17365 -0.98481 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_53" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.08716 -0.99619 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_54" pos="0.06 -0.03 0.45" size=".005" zaxis="-0.00000 -1.00000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_55" pos="0.06 -0.03 0.45" size=".005" zaxis="0.08716 -0.99619 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_56" pos="0.06 -0.03 0.45" size=".005" zaxis="0.17365 -0.98481 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_57" pos="0.06 -0.03 0.45" size=".005" zaxis="0.25882 -0.96593 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_58" pos="0.06 -0.03 0.45" size=".005" zaxis="0.34202 -0.93969 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_59" pos="0.06 -0.03 0.45" size=".005" zaxis="0.42262 -0.90631 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_60" pos="0.06 -0.03 0.45" size=".005" zaxis="0.50000 -0.86603 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_61" pos="0.06 -0.03 0.45" size=".005" zaxis="0.57358 -0.81915 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_62" pos="0.06 -0.03 0.45" size=".005" zaxis="0.64279 -0.76604 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_63" pos="0.06 -0.03 0.45" size=".005" zaxis="0.70711 -0.70711 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_64" pos="0.06 -0.03 0.45" size=".005" zaxis="0.76604 -0.64279 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_65" pos="0.06 -0.03 0.45" size=".005" zaxis="0.81915 -0.57358 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_66" pos="0.06 -0.03 0.45" size=".005" zaxis="0.86603 -0.50000 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_67" pos="0.06 -0.03 0.45" size=".005" zaxis="0.90631 -0.42262 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_68" pos="0.06 -0.03 0.45" size=".005" zaxis="0.93969 -0.34202 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_69" pos="0.06 -0.03 0.45" size=".005" zaxis="0.96593 -0.25882 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_70" pos="0.06 -0.03 0.45" size=".005" zaxis="0.98481 -0.17365 0" rgba="1 0 0 .3" group="4"/>
-      <site name="lidar_71" pos="0.06 -0.03 0.45" size=".005" zaxis="0.99619 -0.08716 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_00" pos="0.06 -0.03 0.25" size=".005" zaxis="1.00000 0.00000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_01" pos="0.06 -0.03 0.25" size=".005" zaxis="0.99619 0.08716 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_02" pos="0.06 -0.03 0.25" size=".005" zaxis="0.98481 0.17365 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_03" pos="0.06 -0.03 0.25" size=".005" zaxis="0.96593 0.25882 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_04" pos="0.06 -0.03 0.25" size=".005" zaxis="0.93969 0.34202 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_05" pos="0.06 -0.03 0.25" size=".005" zaxis="0.90631 0.42262 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_06" pos="0.06 -0.03 0.25" size=".005" zaxis="0.86603 0.50000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_07" pos="0.06 -0.03 0.25" size=".005" zaxis="0.81915 0.57358 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_08" pos="0.06 -0.03 0.25" size=".005" zaxis="0.76604 0.64279 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_09" pos="0.06 -0.03 0.25" size=".005" zaxis="0.70711 0.70711 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_10" pos="0.06 -0.03 0.25" size=".005" zaxis="0.64279 0.76604 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_11" pos="0.06 -0.03 0.25" size=".005" zaxis="0.57358 0.81915 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_12" pos="0.06 -0.03 0.25" size=".005" zaxis="0.50000 0.86603 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_13" pos="0.06 -0.03 0.25" size=".005" zaxis="0.42262 0.90631 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_14" pos="0.06 -0.03 0.25" size=".005" zaxis="0.34202 0.93969 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_15" pos="0.06 -0.03 0.25" size=".005" zaxis="0.25882 0.96593 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_16" pos="0.06 -0.03 0.25" size=".005" zaxis="0.17365 0.98481 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_17" pos="0.06 -0.03 0.25" size=".005" zaxis="0.08716 0.99619 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_18" pos="0.06 -0.03 0.25" size=".005" zaxis="0.00000 1.00000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_19" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.08716 0.99619 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_20" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.17365 0.98481 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_21" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.25882 0.96593 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_22" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.34202 0.93969 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_23" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.42262 0.90631 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_24" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.50000 0.86603 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_25" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.57358 0.81915 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_26" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.64279 0.76604 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_27" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.70711 0.70711 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_28" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.76604 0.64279 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_29" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.81915 0.57358 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_30" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.86603 0.50000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_31" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.90631 0.42262 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_32" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.93969 0.34202 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_33" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.96593 0.25882 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_34" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.98481 0.17365 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_35" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.99619 0.08716 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_36" pos="0.06 -0.03 0.25" size=".005" zaxis="-1.00000 0.00000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_37" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.99619 -0.08716 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_38" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.98481 -0.17365 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_39" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.96593 -0.25882 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_40" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.93969 -0.34202 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_41" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.90631 -0.42262 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_42" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.86603 -0.50000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_43" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.81915 -0.57358 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_44" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.76604 -0.64279 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_45" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.70711 -0.70711 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_46" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.64279 -0.76604 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_47" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.57358 -0.81915 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_48" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.50000 -0.86603 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_49" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.42262 -0.90631 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_50" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.34202 -0.93969 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_51" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.25882 -0.96593 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_52" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.17365 -0.98481 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_53" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.08716 -0.99619 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_54" pos="0.06 -0.03 0.25" size=".005" zaxis="-0.00000 -1.00000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_55" pos="0.06 -0.03 0.25" size=".005" zaxis="0.08716 -0.99619 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_56" pos="0.06 -0.03 0.25" size=".005" zaxis="0.17365 -0.98481 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_57" pos="0.06 -0.03 0.25" size=".005" zaxis="0.25882 -0.96593 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_58" pos="0.06 -0.03 0.25" size=".005" zaxis="0.34202 -0.93969 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_59" pos="0.06 -0.03 0.25" size=".005" zaxis="0.42262 -0.90631 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_60" pos="0.06 -0.03 0.25" size=".005" zaxis="0.50000 -0.86603 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_61" pos="0.06 -0.03 0.25" size=".005" zaxis="0.57358 -0.81915 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_62" pos="0.06 -0.03 0.25" size=".005" zaxis="0.64279 -0.76604 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_63" pos="0.06 -0.03 0.25" size=".005" zaxis="0.70711 -0.70711 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_64" pos="0.06 -0.03 0.25" size=".005" zaxis="0.76604 -0.64279 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_65" pos="0.06 -0.03 0.25" size=".005" zaxis="0.81915 -0.57358 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_66" pos="0.06 -0.03 0.25" size=".005" zaxis="0.86603 -0.50000 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_67" pos="0.06 -0.03 0.25" size=".005" zaxis="0.90631 -0.42262 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_68" pos="0.06 -0.03 0.25" size=".005" zaxis="0.93969 -0.34202 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_69" pos="0.06 -0.03 0.25" size=".005" zaxis="0.96593 -0.25882 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_70" pos="0.06 -0.03 0.25" size=".005" zaxis="0.98481 -0.17365 0" rgba="1 0 0 .3" group="4"/>
+      <site name="lidar_71" pos="0.06 -0.03 0.25" size=".005" zaxis="0.99619 -0.08716 0" rgba="1 0 0 .3" group="4"/>
       <!-- Fixed wheelchair proxy: +x is forward, -y is user's right. -->
       <geom name="battery_box" type="box" pos="0 0 .26" size=".30 .25 .105" material="chair_frame"/>
       <geom name="seat" type="box" pos="-.08 0 .62" size=".27 .245 .045" material="seat_fabric"/>
@@ -180,21 +211,21 @@
                       <inertial pos=".0010312 .0121761 .0315481" mass="1.2" diaginertia=".001 .001 .001"/>
                       <joint name="joint6" axis="0 0 1" range="-3.14 3.14"/>
                       <geom class="armvisual" type="capsule" fromto="0 0 0 0 0 .13503" size=".027" material="piper_gray"/>
-                      <site name="press_tip" pos="0 0 .094" size=".008" rgba="1 0 1 .9"/>
+                      <geom name="stylus" type="capsule" fromto="0 0 .094 0 0 .105" size=".004" rgba=".85 .85 .88 1" contype="1" conaffinity="1" friction="0.8 0.005 0.0001"/>
+                      <site name="press_tip" pos="0 0 .109" size=".004" rgba="1 0 1 .9"/>
+                      <site name="touch_tip" type="sphere" pos="0 0 .105" size=".007" rgba="0 0 0 0"/>
                       <site name="ee_site" pos="0 0 .15" size=".018" rgba="0 1 .6 .9"/>
                       <camera name="wrist_rgb" pos="0 0 .15" quat="0 1 0 0" fovy="80"/>
                       <body name="link7" pos="0 0 .13503" quat=".000000019 .000000019 .707108 .707105" gravcomp="1">
                         <inertial pos="-.000277778 -.0467673 -.00921029" mass=".0264823" diaginertia=".001 .001 .001"/>
                         <joint name="joint7" axis="0 0 -1" class="finger" range="0 .035"/>
                         <geom class="armvisual" type="capsule" fromto="0 0 0 0 -.075 0" size=".011" material="piper_gray"/>
-                        <site name="touch_left" type="box" size=".014 .016 .008" pos="0 -.055 -.004" rgba="0 0 0 0"/>
                         <geom name="finger_pad_left" type="box" size=".012 .014 .005" pos="0 -.055 -.004" rgba=".10 .12 .14 .9" contype="1" conaffinity="1"/>
                       </body>
                       <body name="link8" pos="0 0 .13503" quat=".000000019 -.000000019 -.707108 .707105" gravcomp="1">
                         <inertial pos=".000277817 .0467674 -.0092103" mass=".0264822" diaginertia=".001 .001 .001"/>
                         <joint name="joint8" axis="0 0 1" class="finger" range="-.035 0"/>
                         <geom class="armvisual" type="capsule" fromto="0 0 0 0 .075 0" size=".011" material="piper_gray"/>
-                        <site name="touch_right" type="box" size=".014 .016 .008" pos="0 .055 -.004" rgba="0 0 0 0"/>
                         <geom name="finger_pad_right" type="box" size=".012 .014 .005" pos="0 .055 -.004" rgba=".10 .12 .14 .9" contype="1" conaffinity="1"/>
                       </body>
                     </body>
@@ -206,72 +237,227 @@
         </body>
       </body>
     </body>
-    <light name="hall_1" pos="1.5 1.8 2.6" dir="0 0 -1" diffuse=".45 .45 .45"/>
-    <light name="hall_2" pos="4.5 1.2 2.6" dir="0 -.3 -1" diffuse=".55 .55 .55"/>
-    <geom name="wall_panel" class="wall" type="box" pos="3.5 -.05 1.25" size="4.0 .05 1.25"/>
-    <geom name="wall_far" class="wall" type="box" pos="3.5 3.65 1.25" size="4.0 .05 1.25"/>
-    <geom name="wall_left" class="wall" type="box" pos="-.55 1.8 1.25" size=".05 1.9 1.25"/>
-    <geom name="wall_right" class="wall" type="box" pos="7.55 1.8 1.25" size=".05 1.9 1.25"/>
-    <geom name="elevator_door" type="box" pos="5.8 .004 1.05" size=".50 .004 1.05" rgba=".62 .66 .70 1" contype="0" conaffinity="0"/>
-    <geom name="elevator_frame" type="box" pos="5.8 .002 1.07" size=".56 .002 1.10" rgba=".35 .37 .40 1" contype="0" conaffinity="0"/>
-    <body name="elevator_panel" pos="5.0 0.035 1.09">
-      <geom type="box" name="panel" size=".13 .035 .10" rgba=".30 .33 .37 1" contype="1" conaffinity="3"/>
-      <body name="elevator_button_4" pos="-0.07 .065 0.035">
-        <joint name="button_4_slide" type="slide" axis="0 -1 0" range="0 .015" limited="true" stiffness="220" damping="3"/>
-        <geom name="button_4_geom" type="cylinder" size=".022 .015" quat=".7071068 .7071068 0 0" rgba=".86 .86 .82 1" mass=".025"/>
-        <geom name="button_4_label" type="box" size=".0135 .0006 .0135" pos="0 .0157 0" material="digit_4" contype="0" conaffinity="0" mass="0"/>
-        <site name="button_4_target" pos="0 .04 0" size=".010" rgba="1 .85 .1 .8"/>
-      </body>
-      <body name="elevator_button_5" pos="0.0 .065 0.035">
-        <joint name="button_5_slide" type="slide" axis="0 -1 0" range="0 .015" limited="true" stiffness="220" damping="3"/>
-        <geom name="button_5_geom" type="cylinder" size=".022 .015" quat=".7071068 .7071068 0 0" rgba=".86 .86 .82 1" mass=".025"/>
-        <geom name="button_5_label" type="box" size=".0135 .0006 .0135" pos="0 .0157 0" material="digit_5" contype="0" conaffinity="0" mass="0"/>
-        <site name="button_5_target" pos="0 .04 0" size=".010" rgba="1 .85 .1 .8"/>
-      </body>
-      <body name="elevator_button_6" pos="0.07 .065 0.035">
-        <joint name="button_6_slide" type="slide" axis="0 -1 0" range="0 .015" limited="true" stiffness="220" damping="3"/>
-        <geom name="button_6_geom" type="cylinder" size=".022 .015" quat=".7071068 .7071068 0 0" rgba=".86 .86 .82 1" mass=".025"/>
-        <geom name="button_6_label" type="box" size=".0135 .0006 .0135" pos="0 .0157 0" material="digit_6" contype="0" conaffinity="0" mass="0"/>
-        <site name="button_6_target" pos="0 .04 0" size=".010" rgba="1 .85 .1 .8"/>
-      </body>
-      <body name="elevator_button_1" pos="-0.07 .065 -0.035">
-        <joint name="button_1_slide" type="slide" axis="0 -1 0" range="0 .015" limited="true" stiffness="220" damping="3"/>
-        <geom name="button_1_geom" type="cylinder" size=".022 .015" quat=".7071068 .7071068 0 0" rgba=".86 .86 .82 1" mass=".025"/>
-        <geom name="button_1_label" type="box" size=".0135 .0006 .0135" pos="0 .0157 0" material="digit_1" contype="0" conaffinity="0" mass="0"/>
-        <site name="button_1_target" pos="0 .04 0" size=".010" rgba="1 .85 .1 .8"/>
-      </body>
-      <body name="elevator_button_2" pos="0.0 .065 -0.035">
-        <joint name="button_2_slide" type="slide" axis="0 -1 0" range="0 .015" limited="true" stiffness="220" damping="3"/>
-        <geom name="button_2_geom" type="cylinder" size=".022 .015" quat=".7071068 .7071068 0 0" rgba=".86 .86 .82 1" mass=".025"/>
-        <geom name="button_2_label" type="box" size=".0135 .0006 .0135" pos="0 .0157 0" material="digit_2" contype="0" conaffinity="0" mass="0"/>
-        <site name="button_2_target" pos="0 .04 0" size=".010" rgba="1 .85 .1 .8"/>
-      </body>
-      <body name="elevator_button_3" pos="0.07 .065 -0.035">
-        <joint name="button_3_slide" type="slide" axis="0 -1 0" range="0 .015" limited="true" stiffness="220" damping="3"/>
-        <geom name="button_3_geom" type="cylinder" size=".022 .015" quat=".7071068 .7071068 0 0" rgba=".86 .86 .82 1" mass=".025"/>
-        <geom name="button_3_label" type="box" size=".0135 .0006 .0135" pos="0 .0157 0" material="digit_3" contype="0" conaffinity="0" mass="0"/>
-        <site name="button_3_target" pos="0 .04 0" size=".010" rgba="1 .85 .1 .8"/>
+    <light name="window_light" pos="7.3 1.8 1.8" dir="-1 0 -.3" diffuse=".25 .27 .30" castshadow="false"/>
+    <light name="ambient_fill" pos="3.5 1.8 4" dir="0 0 -1" diffuse=".18 .18 .18" castshadow="false" directional="true"/>
+    <geom name="wall_panel" class="wall" type="box" pos="3.5 -.05 1.29" size="4.0 .05 1.29" material="wall_paint"/>
+    <geom name="wall_far" class="wall" type="box" pos="3.5 3.65 1.29" size="4.0 .05 1.29" material="wall_paint"/>
+    <geom name="wall_left" class="wall" type="box" pos="-.55 1.8 1.29" size=".05 1.9 1.29" material="wall_paint"/>
+    <geom name="wall_right" class="wall" type="box" pos="7.55 1.8 1.29" size=".05 1.9 1.29" material="wall_paint"/>
+    <geom name="ceiling" type="box" pos="3.5 1.8 2.58" size="4.05 1.85 .04" rgba=".93 .92 .89 1" class="decor" group="3"/>
+    <geom name="wainscot_far" type="box" pos="3.5 3.597 .45" size="4.0 .003 .45" rgba=".80 .76 .68 1" class="decor"/>
+    <geom name="chair_rail_far" type="box" pos="3.5 3.592 .91" size="4.0 .008 .012" rgba=".58 .50 .40 1" class="decor"/>
+    <geom name="baseboard_near" type="box" pos="3.5 .01 .05" size="4.0 .01 .05" rgba=".42 .36 .30 1" class="decor"/>
+    <geom name="baseboard_far" type="box" pos="3.5 3.59 .05" size="4.0 .01 .05" rgba=".42 .36 .30 1" class="decor"/>
+    <geom name="window" type="box" pos="7.497 1.8 1.55" size=".003 .8 .55" material="glow_window" class="decor"/>
+    <geom name="window_frame_h" type="box" pos="7.494 1.8 1.55" size=".004 .82 .02" rgba=".85 .85 .85 1" class="decor"/>
+    <geom name="window_frame_v" type="box" pos="7.494 1.8 1.55" size=".004 .02 .57" rgba=".85 .85 .85 1" class="decor"/>
+    <geom name="fire_cabinet" type="box" pos="4.5 3.58 1.15" size=".30 .02 .38" rgba=".78 .12 .10 1" class="decor"/>
+    <geom name="fire_sign" type="box" pos="4.5 3.559 1.38" size=".12 .001 .05" material="fire_sign" class="decor"/>
+    <geom name="exit_sign" type="box" pos="7.44 1.8 2.25" size=".01 .16 .06" material="glow_exit" class="decor"/>
+    <geom name="tile_seam_x_0" type="box" pos="0.10 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_1" type="box" pos="0.70 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_2" type="box" pos="1.30 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_3" type="box" pos="1.90 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_4" type="box" pos="2.50 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_5" type="box" pos="3.10 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_6" type="box" pos="3.70 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_7" type="box" pos="4.30 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_8" type="box" pos="4.90 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_9" type="box" pos="5.50 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_10" type="box" pos="6.10 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_11" type="box" pos="6.70 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_x_12" type="box" pos="7.30 1.8 .0015" size=".004 1.8 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_y_0" type="box" pos="3.5 0.60 .0015" size="4.0 .004 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_y_1" type="box" pos="3.5 1.20 .0015" size="4.0 .004 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_y_2" type="box" pos="3.5 1.80 .0015" size="4.0 .004 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_y_3" type="box" pos="3.5 2.40 .0015" size="4.0 .004 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="tile_seam_y_4" type="box" pos="3.5 3.00 .0015" size="4.0 .004 .0015" rgba=".60 .58 .54 1" class="decor"/>
+    <geom name="ceil_light_0" type="box" pos="1.0 1.8 2.535" size=".30 .30 .01" material="glow_light" class="decor" group="3"/>
+    <light name="hall_0" pos="1.0 1.8 2.45" dir="0 0 -1" diffuse=".42 .41 .38" specular=".1 .1 .1" attenuation="1 .05 0" castshadow="true"/>
+    <geom name="ceil_light_1" type="box" pos="3.2 1.8 2.535" size=".30 .30 .01" material="glow_light" class="decor" group="3"/>
+    <light name="hall_1" pos="3.2 1.8 2.45" dir="0 0 -1" diffuse=".42 .41 .38" specular=".1 .1 .1" attenuation="1 .05 0" castshadow="true"/>
+    <geom name="ceil_light_2" type="box" pos="5.4 1.8 2.535" size=".30 .30 .01" material="glow_light" class="decor" group="3"/>
+    <light name="hall_2" pos="5.4 1.8 2.45" dir="0 0 -1" diffuse=".42 .41 .38" specular=".1 .1 .1" attenuation="1 .05 0" castshadow="true"/>
+    <body name="home_door" pos="5.0 0 0" childclass="decor">
+      <geom name="home_leaf" type="box" pos="0 -0.005 1.05" size=".46 .008 1.05" rgba=".36 .21 .12 1" contype="0" conaffinity="0"/>
+      <geom name="home_inset_upper" type="box" pos="0 0.004 1.62" size=".32 .002 .36" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="home_inset_lower" type="box" pos="0 0.004 .58" size=".32 .002 .42" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="home_frame_l" type="box" pos=".50 0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="home_frame_r" type="box" pos="-.50 0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="home_frame_t" type="box" pos="0 0.0 2.14" size=".54 .02 .04" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="home_peephole" type="cylinder" pos="0 0.006 1.62" quat=".7071068 .7071068 0 0" size=".02 .004" rgba=".12 .13 .14 1" contype="0" conaffinity="0"/>
+      <geom name="home_plate" type="box" pos="0 0.023 2.30" size=".09 .003 .04" material="unit_1203" contype="0" conaffinity="0"/>
+      <body name="doorlock" pos="-0.33 0.003 1.14">
+        <geom name="lock_housing" type="box" pos="0 0.011 0" size="0.04 0.011 0.085" rgba=".16 .17 .18 1" contype="1" conaffinity="1"/>
+        <geom name="lock_glass" type="box" pos="0 0.022199999999999998 .01" size=".034 .0002 .054" rgba=".05 .06 .07 1"/>
+        <geom name="lock_led" type="box" pos="0 0.0226 -0.052" size=".012 .0006 .0035" rgba="0.25 0.26 0.27 1.0"/>
+        <geom name="lock_brand" type="box" pos="0 0.0223 -.072" size=".018 .0003 .004" rgba=".55 .56 .58 1"/>
+        <geom name="lock_handle_rose" type="cylinder" pos="0 .012 -.21" quat=".7071068 .7071068 0 0" size=".026 .012" rgba=".70 .68 .64 1"/>
+        <geom name="lock_handle_lever" type="box" pos=".055 .034 -.21" size=".065 .012 .011" rgba=".74 .72 .68 1"/>
+          <body name="key_1" pos="0.02 0.022 0.04">
+            <joint name="key_1_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_1_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_1_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_1" class="decor"/>
+            <site name="key_1_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_2" pos="0.0 0.022 0.04">
+            <joint name="key_2_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_2_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_2_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_2" class="decor"/>
+            <site name="key_2_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_3" pos="-0.02 0.022 0.04">
+            <joint name="key_3_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_3_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_3_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_3" class="decor"/>
+            <site name="key_3_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_4" pos="0.02 0.022 0.02">
+            <joint name="key_4_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_4_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_4_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_4" class="decor"/>
+            <site name="key_4_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_5" pos="0.0 0.022 0.02">
+            <joint name="key_5_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_5_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_5_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_5" class="decor"/>
+            <site name="key_5_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_6" pos="-0.02 0.022 0.02">
+            <joint name="key_6_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_6_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_6_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_6" class="decor"/>
+            <site name="key_6_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_7" pos="0.02 0.022 0.0">
+            <joint name="key_7_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_7_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_7_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_7" class="decor"/>
+            <site name="key_7_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_8" pos="0.0 0.022 0.0">
+            <joint name="key_8_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_8_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_8_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_8" class="decor"/>
+            <site name="key_8_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_9" pos="-0.02 0.022 0.0">
+            <joint name="key_9_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_9_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_9_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_9" class="decor"/>
+            <site name="key_9_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_star" pos="0.02 0.022 -0.02">
+            <joint name="key_star_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_star_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_star_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_star" class="decor"/>
+            <site name="key_star_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_0" pos="0.0 0.022 -0.02">
+            <joint name="key_0_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_0_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_0_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_0" class="decor"/>
+            <site name="key_0_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
+          <body name="key_hash" pos="-0.02 0.022 -0.02">
+            <joint name="key_hash_slide" type="slide" axis="0 -1 0" range="0 0.004" limited="true" stiffness="180" damping="0.4"/>
+            <geom name="key_hash_geom" type="box" size="0.0075 .004 0.0075" rgba=".10 .11 .12 1" mass=".004" contype="1" conaffinity="1"/>
+            <geom name="key_hash_label" type="box" size="0.0069 .0004 0.0069" pos="0 .0042 0" material="key_hash" class="decor"/>
+            <site name="key_hash_target" pos="0 .02 0" size=".004" rgba="1 .85 .1 .8"/>
+          </body>
       </body>
     </body>
-    <body name="obs_0" pos="20.0 20.0 0.45">
-      <geom name="obs_0_geom" class="wall" type="box" size=".22 .22 .45" rgba=".55 .42 .30 1"/>
+    <body name="door_1202" pos="2.0 0 0" childclass="decor">
+      <geom name="d1202_leaf" type="box" pos="0 -0.005 1.05" size=".46 .008 1.05" rgba=".36 .21 .12 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_inset_upper" type="box" pos="0 0.004 1.62" size=".32 .002 .36" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_inset_lower" type="box" pos="0 0.004 .58" size=".32 .002 .42" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_frame_l" type="box" pos=".50 0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_frame_r" type="box" pos="-.50 0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_frame_t" type="box" pos="0 0.0 2.14" size=".54 .02 .04" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_peephole" type="cylinder" pos="0 0.006 1.62" quat=".7071068 .7071068 0 0" size=".02 .004" rgba=".12 .13 .14 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_plate" type="box" pos="0 0.023 2.30" size=".09 .003 .04" material="unit_1202" contype="0" conaffinity="0"/>
+      <geom name="d1202_lock" type="box" pos="-0.33 0.014 1.15" size=".04 .011 .085" rgba=".14 .15 .16 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_lock_pad" type="box" pos="-0.33 0.026 1.16" size=".032 .001 .045" rgba=".06 .07 .08 1" contype="0" conaffinity="0"/>
+      <geom name="d1202_handle" type="box" pos="-0.30000000000000004 0.045 .99" size=".06 .012 .012" rgba=".72 .70 .66 1" contype="0" conaffinity="0"/>
     </body>
-    <body name="obs_1" pos="22.0 20.0 0.4">
-      <geom name="obs_1_geom" class="wall" type="cylinder" size=".18 .40" rgba=".25 .45 .30 1"/>
+    <body name="door_1205" pos="2.9 3.6 0" childclass="decor">
+      <geom name="d1205_leaf" type="box" pos="0 0.005 1.05" size=".46 .008 1.05" rgba=".36 .21 .12 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_inset_upper" type="box" pos="0 -0.004 1.62" size=".32 .002 .36" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_inset_lower" type="box" pos="0 -0.004 .58" size=".32 .002 .42" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_frame_l" type="box" pos=".50 -0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_frame_r" type="box" pos="-.50 -0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_frame_t" type="box" pos="0 -0.0 2.14" size=".54 .02 .04" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_peephole" type="cylinder" pos="0 -0.006 1.62" quat=".7071068 .7071068 0 0" size=".02 .004" rgba=".12 .13 .14 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_plate" type="box" pos="0 -0.023 2.30" size=".09 .003 .04" material="unit_1205" contype="0" conaffinity="0"/>
+      <geom name="d1205_lock" type="box" pos="0.33 -0.014 1.15" size=".04 .011 .085" rgba=".14 .15 .16 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_lock_pad" type="box" pos="0.33 -0.026 1.16" size=".032 .001 .045" rgba=".06 .07 .08 1" contype="0" conaffinity="0"/>
+      <geom name="d1205_handle" type="box" pos="0.30000000000000004 -0.045 .99" size=".06 .012 .012" rgba=".72 .70 .66 1" contype="0" conaffinity="0"/>
     </body>
-    <body name="obs_2" pos="24.0 20.0 0.42">
-      <geom name="obs_2_geom" class="wall" type="box" size=".28 .25 .42" rgba=".40 .40 .55 1"/>
+    <body name="door_1204" pos="5.9 3.6 0" childclass="decor">
+      <geom name="d1204_leaf" type="box" pos="0 0.005 1.05" size=".46 .008 1.05" rgba=".36 .21 .12 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_inset_upper" type="box" pos="0 -0.004 1.62" size=".32 .002 .36" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_inset_lower" type="box" pos="0 -0.004 .58" size=".32 .002 .42" rgba=".41 .25 .15 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_frame_l" type="box" pos=".50 -0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_frame_r" type="box" pos="-.50 -0.0 1.08" size=".04 .02 1.08" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_frame_t" type="box" pos="0 -0.0 2.14" size=".54 .02 .04" rgba=".80 .77 .70 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_peephole" type="cylinder" pos="0 -0.006 1.62" quat=".7071068 .7071068 0 0" size=".02 .004" rgba=".12 .13 .14 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_plate" type="box" pos="0 -0.023 2.30" size=".09 .003 .04" material="unit_1204" contype="0" conaffinity="0"/>
+      <geom name="d1204_lock" type="box" pos="0.33 -0.014 1.15" size=".04 .011 .085" rgba=".14 .15 .16 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_lock_pad" type="box" pos="0.33 -0.026 1.16" size=".032 .001 .045" rgba=".06 .07 .08 1" contype="0" conaffinity="0"/>
+      <geom name="d1204_handle" type="box" pos="0.30000000000000004 -0.045 .99" size=".06 .012 .012" rgba=".72 .70 .66 1" contype="0" conaffinity="0"/>
     </body>
-    <body name="obs_3" pos="26.0 20.0 0.45">
-      <geom name="obs_3_geom" class="wall" type="cylinder" size=".22 .45" rgba=".60 .35 .25 1"/>
+    <body name="obs_0" pos="20.0 20.0 0.2">
+      <geom name="obs_0_geom" class="wall" type="box" size=".20 .20 .20" rgba=".62 .43 .24 1"/>
+      <geom name="obs_0_tape" type="box" size="0.201 .03 0.201" rgba=".78 .70 .52 1" class="decor"/>
+      <geom name="obs_0_label" type="box" pos="0.06 -0.201 0.08000000000000002" size=".06 .001 .04" rgba=".96 .96 .94 1" class="decor"/>
     </body>
-    <body name="obs_4" pos="28.0 20.0 0.4">
-      <geom name="obs_4_geom" class="wall" type="box" size=".15 .35 .40" rgba=".50 .50 .50 1"/>
+    <body name="obs_1" pos="22.0 20.0 0.8">
+      <geom name="obs_1_geom" class="wall" type="cylinder" size=".22 .80" rgba=".24 .34 .50 1"/>
+      <geom name="obs_1_head" type="sphere" pos="0 0 0.91" size=".10" rgba=".86 .70 .58 1" class="decor"/>
+      <geom name="obs_1_hair" type="sphere" pos="0 .01 0.9400000000000001" size=".095" rgba=".12 .10 .09 1" class="decor"/>
+      <geom name="obs_1_shoulder" type="capsule" fromto="-0.24 0 0.68 0.24 0 0.68" size=".06" rgba=".24 .34 .50 1" class="decor"/>
+      <geom name="obs_1_legs" type="cylinder" pos="0 0 -0.4" size="0.2024 .40" rgba=".18 .18 .22 1" class="decor"/>
     </body>
-    <body name="obs_5" pos="30.0 20.0 0.42">
-      <geom name="obs_5_geom" class="wall" type="cylinder" size=".15 .42" rgba=".30 .30 .65 1"/>
+    <body name="obs_2" pos="24.0 20.0 0.18">
+      <geom name="obs_2_geom" class="wall" type="box" size=".18 .18 .18" rgba=".55 .38 .20 1"/>
+      <geom name="obs_2_tape" type="box" size="0.181 .03 0.181" rgba=".78 .70 .52 1" class="decor"/>
+      <geom name="obs_2_label" type="box" pos="0.054 -0.181 0.072" size=".06 .001 .04" rgba=".96 .96 .94 1" class="decor"/>
+    </body>
+    <body name="obs_3" pos="26.0 20.0 0.84">
+      <geom name="obs_3_geom" class="wall" type="cylinder" size=".20 .84" rgba=".36 .30 .28 1"/>
+      <geom name="obs_3_head" type="sphere" pos="0 0 0.95" size=".10" rgba=".86 .70 .58 1" class="decor"/>
+      <geom name="obs_3_hair" type="sphere" pos="0 .01 0.98" size=".095" rgba=".12 .10 .09 1" class="decor"/>
+      <geom name="obs_3_shoulder" type="capsule" fromto="-0.22 0 0.72 0.22 0 0.72" size=".06" rgba=".36 .30 .28 1" class="decor"/>
+      <geom name="obs_3_legs" type="cylinder" pos="0 0 -0.43999999999999995" size="0.18400000000000002 .40" rgba=".18 .18 .22 1" class="decor"/>
+    </body>
+    <body name="obs_4" pos="28.0 20.0 0.21">
+      <geom name="obs_4_geom" class="wall" type="box" size=".21 .21 .21" rgba=".70 .52 .30 1"/>
+      <geom name="obs_4_tape" type="box" size="0.211 .03 0.211" rgba=".78 .70 .52 1" class="decor"/>
+      <geom name="obs_4_label" type="box" pos="0.063 -0.211 0.084" size=".06 .001 .04" rgba=".96 .96 .94 1" class="decor"/>
+    </body>
+    <body name="obs_5" pos="30.0 20.0 0.78">
+      <geom name="obs_5_geom" class="wall" type="cylinder" size=".24 .78" rgba=".20 .40 .32 1"/>
+      <geom name="obs_5_head" type="sphere" pos="0 0 0.89" size=".10" rgba=".86 .70 .58 1" class="decor"/>
+      <geom name="obs_5_hair" type="sphere" pos="0 .01 0.92" size=".095" rgba=".12 .10 .09 1" class="decor"/>
+      <geom name="obs_5_shoulder" type="capsule" fromto="-0.26 0 0.66 0.26 0 0.66" size=".06" rgba=".20 .40 .32 1" class="decor"/>
+      <geom name="obs_5_legs" type="cylinder" pos="0 0 -0.38" size="0.2208 .40" rgba=".18 .18 .22 1" class="decor"/>
     </body>
   </worldbody>
+  <contact>
+    <exclude body1="doorlock" body2="key_1"/>
+    <exclude body1="doorlock" body2="key_2"/>
+    <exclude body1="doorlock" body2="key_3"/>
+    <exclude body1="doorlock" body2="key_4"/>
+    <exclude body1="doorlock" body2="key_5"/>
+    <exclude body1="doorlock" body2="key_6"/>
+    <exclude body1="doorlock" body2="key_7"/>
+    <exclude body1="doorlock" body2="key_8"/>
+    <exclude body1="doorlock" body2="key_9"/>
+    <exclude body1="doorlock" body2="key_star"/>
+    <exclude body1="doorlock" body2="key_0"/>
+    <exclude body1="doorlock" body2="key_hash"/>
+  </contact>
   <equality>
     <joint joint1="joint8" joint2="joint7" polycoef="0 -1 0 0 0"/>
   </equality>
@@ -360,13 +546,18 @@
     <rangefinder name="lidar_69" site="lidar_69"/>
     <rangefinder name="lidar_70" site="lidar_70"/>
     <rangefinder name="lidar_71" site="lidar_71"/>
-    <jointpos name="button_1_pos" joint="button_1_slide"/>
-    <jointpos name="button_2_pos" joint="button_2_slide"/>
-    <jointpos name="button_3_pos" joint="button_3_slide"/>
-    <jointpos name="button_4_pos" joint="button_4_slide"/>
-    <jointpos name="button_5_pos" joint="button_5_slide"/>
-    <jointpos name="button_6_pos" joint="button_6_slide"/>
-    <touch name="touch_left" site="touch_left"/>
-    <touch name="touch_right" site="touch_right"/>
+    <jointpos name="key_1_pos" joint="key_1_slide"/>
+    <jointpos name="key_2_pos" joint="key_2_slide"/>
+    <jointpos name="key_3_pos" joint="key_3_slide"/>
+    <jointpos name="key_4_pos" joint="key_4_slide"/>
+    <jointpos name="key_5_pos" joint="key_5_slide"/>
+    <jointpos name="key_6_pos" joint="key_6_slide"/>
+    <jointpos name="key_7_pos" joint="key_7_slide"/>
+    <jointpos name="key_8_pos" joint="key_8_slide"/>
+    <jointpos name="key_9_pos" joint="key_9_slide"/>
+    <jointpos name="key_star_pos" joint="key_star_slide"/>
+    <jointpos name="key_0_pos" joint="key_0_slide"/>
+    <jointpos name="key_hash_pos" joint="key_hash_slide"/>
+    <touch name="touch_tip" site="touch_tip"/>
   </sensor>
 </mujoco>

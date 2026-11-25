@@ -14,16 +14,20 @@ from nlu.validate import validate
 
 
 def parse_command(text: str, mode: str = "rules+llm", scene_floors=(1, 2, 3), scene: str = "v2") -> tuple[dict, dict]:
-    """scene="v3": 버튼 색 매핑 끔, LLM 프롬프트에 꼭대기층=max(scene_floors)·주행 안내."""
+    """scene="v2": 엘리베이터 버튼(층).  scene="v4": 우리 집 현관 도어락 열기 (nlu/doorlock.py)."""
     t0 = time.perf_counter()
-    v3 = scene == "v3"
-    rule = parse_rules(text, use_color=not v3)
+    v4 = scene == "v4"
+    if v4:
+        from nlu.doorlock import parse_rules_v4
+        rule = parse_rules_v4(text)
+    else:
+        rule = parse_rules(text)
     meta = {"parser": "rules", "llm_ms": None, "rule": {k: rule[k] for k in ("intent", "floor", "floors", "block", "confident")},
             "llm": None, "llm_error": None}
     llm = None
     if mode == "rules+llm" and not rule["block"]:
         from nlu.llm_ollama import parse_llm
-        llm, lm = parse_llm(text, top_floor=max(scene_floors), mobile=v3)
+        llm, lm = parse_llm(text, top_floor=max(scene_floors), scene=scene)
         meta["llm_ms"] = lm["llm_ms"]
         meta["llm_model"] = lm["model"]
         if llm is None:
@@ -34,6 +38,10 @@ def parse_command(text: str, mode: str = "rules+llm", scene_floors=(1, 2, 3), sc
             meta["llm"] = llm
     elif mode == "rules+llm":
         meta["parser"] = "rules(block)"
-    task = validate(rule, llm, scene_floors)
+    if v4:
+        from nlu.doorlock import validate_v4
+        task = validate_v4(rule, llm)
+    else:
+        task = validate(rule, llm, scene_floors)
     meta["parse_ms"] = round((time.perf_counter() - t0) * 1000, 1)
     return task, meta

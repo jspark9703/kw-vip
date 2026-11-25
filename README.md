@@ -1,8 +1,9 @@
 # kw-vip — 텍스트 명령으로 동작하는 생활보조 로봇 (시나리오 A: 엘리베이터 버튼)
 
-**v3 (최종 태스크)**: "엘리베이터로 가서 3층 눌러줘" 같은 한국어 명령을 해석해, 전동 휠체어가 엘리베이터까지 **주행**(라이다로 장애물 우회)하고
-패널 앞에 **도킹**한 뒤, 같은 색 버튼 6개(2x3) 중 **숫자 글씨**로 목표 버튼을 찾아 **피드백 제어로 누르고 램프·변위로 눌렸는지 판단**한다.
-설계·모델 변경점·점검 결과: [docs/kw-vip_v3_설계.md](docs/kw-vip_v3_설계.md)
+**v4 (최종 태스크)**: "현관문 열어줘" 같은 한국어 명령을 해석해, 전동 휠체어가 아파트 복도를 **주행**(라이다로 택배·사람 우회)하고
+우리 집(1203호) 현관 도어락 앞에 **도킹**한 뒤, 3x4 키패드의 **글자**로 키 위치를 찾아 **미리 등록된 비밀번호 + #** 을 키마다 피드백 제어로 누르고,
+**상태 LED**(초록 = 열림)로 문이 열렸는지 판단한다. 설계·모델 변경점·점검 결과: [docs/kw-vip_v4_설계.md](docs/kw-vip_v4_설계.md)
+(v3 엘리베이터 버튼 태스크는 v4 로 교체했다.)
 
 **v2 (이전 단계, `--scene v2`)**: 고정 휠체어에서 색 버튼 3개(1·2·3층)를 누른다. IK·카메라·ACT 비교는 이 장면에서 했다.
 
@@ -10,13 +11,13 @@
 v2 설계와 단계별 통과 조건은 [docs/kw-vip과제_구현개발프로세스.md](docs/kw-vip과제_구현개발프로세스.md) 참고.
 
 ```
-v3
-텍스트 ─ nlu (규칙 안전장치 + 로컬 LLM, 건물 1~6층, 색 매핑 없음) ─> {"intent","floor","reason"}
-  └ mission/fsm.py : STOW_ARM → NAV_TO_LOBBY → FIND_PANEL → DOCK → OBSERVE/READ_DIGITS → PRESS_SERVO → VERIFY → STOW_ARM
+v4
+텍스트 ─ nlu (규칙 안전장치 + 로컬 LLM, nlu/doorlock.py) ─> {"intent": unlock|wait|reject|clarify}
+  └ mission/fsm.py : STOW_ARM → NAV_TO_LOBBY → FIND_PANEL → DOCK → OBSERVE/READ_KEYS → (키마다) APPROACH → PRESS → ... '#' → VERIFY → STOW_ARM
       nav/         라이다 점유격자 · A* · pure pursuit · 재계획 · 비상정지 · 도킹
-      perception/  panel.py (head depth: 벽 RANSAC → 튀어나온 패널) · digits.py (wrist RGB-D 정면화 → 숫자 템플릿 NCC)
-      control/     observe.py (관찰 자세) · press_feedback.py (2mm 서보 + 변위·접촉력 피드백 + 재시도)
-판정 ─ sim/world.py judge(): 목표 버튼 ≥10mm, 다른 버튼 <3mm, 휠체어-벽/장애물 충돌 0
+      perception/  panel.py (head depth: 벽 RANSAC → 튀어나온 도어락, 사전정보로 이웃집 배제) · digits.py (wrist RGB-D 정면화 → 키 글자 NCC, LED 색)
+      control/     observe.py (관찰 자세) · press_feedback.py (키마다 1mm 서보 + 변위·접촉력 피드백, 재시도, * 재입력)
+판정 ─ sim/world.py judge(): 도어락 열림(마지막 * 이후 입력 = 비밀번호+#), 휠체어-벽/장애물 충돌 0
 
 v2
 텍스트 ─ nlu ─> 목표 위치 (site_gt | camera 색) ─> control/press_fsm.py (IK) | policy/act_runner.py (ACT) ─> sim/scene.py judge()
@@ -26,18 +27,18 @@ v2
 
 | 경로 | 내용 |
 |---|---|
-| `models/` | v3 `scene_v3.xml` ← `make_scene_v3.py`(주행 관절·홀·숫자 버튼 6개·라이다·장애물), v2 `scene_v2.xml` ← `make_scene_v2.py`, 원본 `orig/` |
-| `assets/` | 한글 폰트(OFL), `textures/digit_*.png`(버튼 숫자 라벨, make_scene_v3.py 가 생성) |
-| `sim/` | `world.py` make_world(seed, condition) (v3), `scene.py` make_scene (v2), `recorder.py` 오버레이 mp4 (v3: 추종 카메라·미니맵) |
-| `nav/` | `lidar.py`, `grid.py`, `planner.py`, `follower.py`, `dock.py` (v3 주행·우회·도킹) |
-| `mission/` | `fsm.py` v3 상위 상태 기계 run_mission(task, sim) |
-| `control/` | `ik.py` press_tip DLS IK, `press_fsm.py` execute(task, sim) (v2), `observe.py`·`press_feedback.py` (v3) |
-| `nlu/` | `schema.py`, `rules.py`, `llm_ollama.py`, `validate.py`, `parse.py`, `testset_ko.yaml`(v2 40문장), `testset_v3_ko.yaml`(v3 24문장) |
-| `perception/` | `site_gt.py`, `camera.py`(v2 색), `panel.py`(v3 패널), `digits.py`(v3 숫자) |
+| `models/` | v4 `scene_v4.xml` ← `make_scene_v4.py`(주행 관절·스타일러스·아파트 복도·도어락·라이다·택배/사람), v2 `scene_v2.xml` ← `make_scene_v2.py`, 원본 `orig/` |
+| `assets/` | 한글 폰트(OFL), `textures/`(키 라벨 `key_*.png`·호수판·소화전 표지, make_scene_v4.py 가 생성) |
+| `sim/` | `world.py` make_world(seed, condition) (v4: 도어락 동작·충돌 집계), `scene.py` make_scene (v2), `recorder.py` 오버레이 mp4 (v4: 추종 카메라·미니맵·입력 상태) |
+| `nav/` | `lidar.py`, `grid.py`, `planner.py`, `follower.py`, `dock.py` (주행·우회·도킹) |
+| `mission/` | `fsm.py` v4 상위 상태 기계 run_mission(task, sim) |
+| `control/` | `ik.py` press_tip DLS IK, `press_fsm.py` execute(task, sim) (v2), `observe.py`·`press_feedback.py` (v4) |
+| `nlu/` | `schema.py`, `rules.py`·`validate.py`(v2), `doorlock.py`(v4), `llm_ollama.py`, `parse.py`, `testset_ko.yaml`(v2 40문장), `testset_v4_ko.yaml`(v4 24문장) |
+| `perception/` | `site_gt.py`, `camera.py`(v2 색), `panel.py`(v4 도어락), `digits.py`(v4 키 글자·LED) |
 | `policy/` | `gen_demos.py`(IK 전문가 데모), `to_lerobot.py`, `train_act.sh`, `act_runner.py` |
-| `eval/` | `eval_config.yaml`(v2), `eval_config_v3.yaml`(v3), `run_eval.py --scene`, `summarize.py`(v3 서브태스크 표 포함) |
+| `eval/` | `eval_config.yaml`(v2), `eval_config_v4.yaml`(v4), `run_eval.py --scene`, `summarize.py`(v4 서브태스크 표 포함) |
 | `pipeline.py` / `run_demo.py` | 한 시도 실행 / 텍스트 입력 데모 |
-| `tests/` | v3: `check_scene_v3.py`, `check_nav.py [--camera]`, `check_digits.py`, `check_press_v3.py` / v2: `phase_checks.py`, `check_camera.py` / 공통: `eval_nlu.py [--scene v3]` |
+| `tests/` | v4: `check_scene_v4.py`, `check_nav.py [--camera]`, `check_keypad.py`, `check_unlock.py` / v2: `phase_checks.py`, `check_camera.py` / 공통: `eval_nlu.py [--scene v4]` |
 | `scripts/` | `vla-shell-kwvip.sh`(서버 실행 환경), `setup_venv.sh`, `check_env.sh` |
 | `docker/Dockerfile` | vla-lab 이미지 대체용 경량 런타임 |
 | `outputs/` | 로그·영상·데이터셋·체크포인트 (git 제외) |
@@ -45,28 +46,28 @@ v2
 ## 실행
 
 ```bash
-# v3 (기본): 주행 + 숫자 버튼.  영상: outputs/videos/demo_<seed>_1.mp4 (추종 카메라 + 미니맵 + 상태)
-MUJOCO_GL=egl python run_demo.py "엘리베이터로 가서 3층 눌러줘" --parser rules
-MUJOCO_GL=egl python run_demo.py "5층 눌러줘" --condition variation --seed 7       # 패널 ±0.6m + 장애물 2~3개
-MUJOCO_GL=egl python run_demo.py "7층 눌러줘"                                     # 움직이지 않고 거절
-#   --runner ik_gt : 도킹 목표·버튼 위치를 시뮬레이터 좌표로 (기준선)
+# v4 (기본): 복도 주행 + 현관 도어락.  영상: outputs/videos/demo_<seed>_1.mp4 (추종 카메라 + 미니맵 + 입력 상태)
+MUJOCO_GL=egl python run_demo.py "현관문 열어줘" --parser rules
+MUJOCO_GL=egl python run_demo.py "집에 들어가자" --condition variation --seed 7    # 도어락 위치 변화 + 택배·사람 2~3개
+MUJOCO_GL=egl python run_demo.py "옆집 문 열어줘"                                # 움직이지 않고 거절
+#   --runner ik_gt : 도킹 목표·키 위치를 시뮬레이터 좌표로 (기준선)   --password 2580 : 등록 비밀번호 지정
 
-# v3 단계별 점검
-MUJOCO_GL=egl python tests/check_scene_v3.py
+# v4 단계별 점검
+MUJOCO_GL=egl python tests/check_scene_v4.py
 MUJOCO_GL=egl python tests/check_nav.py --camera --n 20
-MUJOCO_GL=egl python tests/check_digits.py --n 50
-MUJOCO_GL=egl python tests/check_press_v3.py --n 12
-python tests/eval_nlu.py --scene v3 -v
+MUJOCO_GL=egl python tests/check_keypad.py --n 30
+MUJOCO_GL=egl python tests/check_unlock.py --n 10 [--inject-miss 0.010]
+python tests/eval_nlu.py --scene v4 -v
 
-# v3 고정 시드 평가 (기본 10 + 변화 10 + 명령 6) -> outputs/eval/v3_<runner>_<parser>/
-MUJOCO_GL=egl python eval/run_eval.py --scene v3 --runner ik_cam --parser rules
-python eval/summarize.py outputs/eval/v3_*/trials.jsonl
+# v4 고정 시드 평가 (기본 10 + 변화 10 + 명령 6) -> outputs/eval/v4_<runner>_<parser>/
+MUJOCO_GL=egl python eval/run_eval.py --scene v4 --runner ik_cam --parser rules
+python eval/summarize.py outputs/eval/v4_*/trials.jsonl
 
 # ---- v2 (이전 장면) ----
 # 텍스트 명령 1회 (영상: outputs/videos/demo_<seed>_1.mp4)
 MUJOCO_GL=egl python run_demo.py "엘리베이터 3층을 선택해 줘" --scene v2 --seed 3 --condition variation
 MUJOCO_GL=egl python run_demo.py "버튼은 누르지 말고 대기해" --scene v2
-MUJOCO_GL=egl python run_demo.py                      # 대화형 (모호하면 되물음, v3)
+MUJOCO_GL=egl python run_demo.py                      # 대화형 (모호하면 되물음, v4)
 #   --parser rules        LLM 없이 규칙만
 #   --runner ik_cam       카메라 인식으로 목표 위치
 #   --runner act --act-ckpt <체크포인트>
@@ -117,16 +118,16 @@ python tests/act_check.py outputs/train/act_press_v1_s20000/checkpoints/020000/p
 python eval/run_eval.py --runner act --parser rules --run act_rules --act-ckpt <선택한 체크포인트>
 ```
 
-## v3 실측 결과 (2026-11-24, kw-vip-lab 컨테이너, 파서 rules)
+## v4 실측 결과 (2026-11-24, kw-vip-lab 컨테이너, 파서 rules)
 
-| 실행부 | 기본 SR | 변화 SR | 전체 SR | 성공 시 시간(중앙값) | 명령 적합성 | 숫자 판독 | 충돌 | 도킹 오차 |
+| 실행부 | 기본 | 변화 | 성공 시 시간(중앙값) | 명령 | 키 판독 | 충돌 | 키당 누름 | LED=센서 |
 |---|---|---|---|---|---|---|---|---|
-| ik_cam (센서만, 최종) | 100% | 100% | 100% | 40.0s | 6/6 | 120/120 | 0 | 10.7mm |
-| ik_gt (GT 기준선) | 100% | 100% | 100% | 32.7s | 6/6 | 120/120 | 0 | 2.2mm |
+| ik_cam (센서만, 최종) | 10/10 | 10/10 | 57.7s | 6/6 | 240/240 | 0 | 1.00 | 20/20 |
+| ik_gt (GT 기준선) | 10/10 | 10/10 | 51.1s | 6/6 | 240/240 | 0 | 1.01 | 20/20 |
 
-평가 범위 밖 `stress`(패널 ±1.0m / ±10cm, 장애물 3개) 16회: 12/16. 실패는 팔 작업 영역 밖 높이(ik) 3, 도킹 경로 막힘(nav) 1.
-추가 반복(독립 시드): variation 30회 30/30, stress 20회 17/20 (nav 2: 대기 지점 막힘, ik 1: 높이). 대표 영상 `outputs/videos/v3/`.
-서브태스크 표·실패 영상: [docs/kw-vip_v3_설계.md](docs/kw-vip_v3_설계.md) 5장.
+추가 반복(독립 시드): variation 30회 30/30. 평가 범위 밖 `stress`(도어락 높이 0.92~1.32m, 장애물 3개) 20회 15/20 —
+실패 5회 모두 도어락 높이가 팔 도달 범위(1.00~1.22m) 밖 (ik 4, digit 1). 대표 영상 `outputs/videos/v4/`.
+서브태스크 표·실패 분석: [docs/kw-vip_v4_설계.md](docs/kw-vip_v4_설계.md) 6장.
 
 ## v2 서버 실측 결과 (2026-11-16, kw-vip-lab 컨테이너, RTX 4070 Ti)
 

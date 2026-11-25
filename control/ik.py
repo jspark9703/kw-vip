@@ -6,7 +6,7 @@
 
 - IK 는 별도 MjData 복사본에서만 계산 -> 실제 시뮬레이션 상태를 건드리지 않음
 - 다중 초기값 + 이전 해에서 이어 풀기(warm start) -> 손목이 갑자기 뒤집히는 해를 피함
-- 팔 관절(joint1~6)의 qpos/dof 주소는 이름으로 찾는다 -> 주행 베이스 관절이 앞에 붙은 scene_v3 에서도 동작.
+- 팔 관절(joint1~6)의 qpos/dof 주소는 이름으로 찾는다 -> 주행 베이스 관절이 앞에 붙은 scene_v4 에서도 동작.
   계산용 복사본에는 sync(data) 로 현재 전체 qpos(베이스 자세 포함)를 넣은 뒤 팔 관절만 바꾼다.
 """
 from __future__ import annotations

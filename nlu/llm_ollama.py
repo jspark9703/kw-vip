@@ -46,17 +46,31 @@ FEWSHOT = [
 ]
 
 
-def _system(top_floor: int = 3, mobile: bool = False) -> str:
-    """장면별 시스템 프롬프트: 꼭대기층 번호, 주행 여부(scene_v3: 엘리베이터까지 이동한 뒤 누름)."""
-    s = SYSTEM.replace("이 장면에서 3층", f"이 장면에서 {top_floor}층")
-    if mobile:
-        s = s.replace("'엘리베이터 버튼 하나 누르기'뿐이다.",
-                      "'엘리베이터 앞까지 이동해서 버튼 하나 누르기'뿐이다. '엘리베이터로 가서 N층' 도 press 다.")
-    return s
+def _system(top_floor: int = 3) -> str:
+    """scene_v2 시스템 프롬프트 (꼭대기층 번호만 장면에 맞춤). scene_v4 는 nlu/doorlock.SYSTEM_V4."""
+    return SYSTEM.replace("이 장면에서 3층", f"이 장면에서 {top_floor}층")
 
 
-def _messages(text: str, top_floor: int = 3, mobile: bool = False) -> list[dict]:
-    msgs = [{"role": "system", "content": _system(top_floor, mobile)}]
+FEWSHOT_V4 = [
+    ("현관문 좀 열어줘", {"intent": "unlock", "floor": None, "reason": "현관문 열기"}),
+    ("집에 들어가자", {"intent": "unlock", "floor": None, "reason": "집에 들어가기"}),
+    ("아직 문 열지 말고 기다려", {"intent": "wait", "floor": None, "reason": "대기 요청"}),
+    ("옆집 문 열어줘", {"intent": "reject", "floor": None, "reason": "다른 집"}),
+    ("물 한 잔 가져다줘", {"intent": "reject", "floor": None, "reason": "범위 밖"}),
+    ("버튼 좀 눌러줘", {"intent": "clarify", "floor": None, "reason": "무엇을 할지 모름"}),
+]
+
+
+def _messages(text: str, top_floor: int = 3, scene: str = "v2") -> list[dict]:
+    if scene == "v4":
+        from nlu.doorlock import SYSTEM_V4
+        msgs = [{"role": "system", "content": SYSTEM_V4}]
+        for u, a in FEWSHOT_V4:
+            msgs.append({"role": "user", "content": u})
+            msgs.append({"role": "assistant", "content": json.dumps(a, ensure_ascii=False)})
+        msgs.append({"role": "user", "content": text})
+        return msgs
+    msgs = [{"role": "system", "content": _system(top_floor)}]
     for u, a in FEWSHOT:
         msgs.append({"role": "user", "content": u})
         msgs.append({"role": "assistant", "content": json.dumps(a, ensure_ascii=False)})
@@ -73,11 +87,11 @@ def available(timeout: float = 2.0) -> bool:
         return False
 
 
-def parse_llm(text: str, model: str | None = None, top_floor: int = 3, mobile: bool = False) -> tuple[dict | None, dict]:
+def parse_llm(text: str, model: str | None = None, top_floor: int = 3, scene: str = "v2") -> tuple[dict | None, dict]:
     """-> (task 또는 None, meta{llm_ms, model, raw, error})"""
     model = model or MODEL
     meta = {"model": model, "llm_ms": None, "raw": None, "error": None}
-    body = {"model": model, "messages": _messages(text, top_floor, mobile), "stream": False,
+    body = {"model": model, "messages": _messages(text, top_floor, scene), "stream": False,
             "format": JSON_SCHEMA, "options": {"temperature": 0, "num_predict": 80}, "keep_alive": "30m"}
     t0 = time.perf_counter()
     try:

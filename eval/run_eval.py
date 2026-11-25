@@ -4,7 +4,7 @@
   MUJOCO_GL=egl python eval/run_eval.py --runner ik_gt  --parser rules+llm
   MUJOCO_GL=egl python eval/run_eval.py --runner ik_cam --parser rules
   MUJOCO_GL=egl python eval/run_eval.py --runner act --act-ckpt outputs/train/act_press_v1/checkpoints/last/pretrained_model
-  MUJOCO_GL=egl python eval/run_eval.py --scene v3 --runner ik_cam --parser rules   # 주행+숫자 버튼 (eval_config_v3.yaml)
+  MUJOCO_GL=egl python eval/run_eval.py --scene v4 --runner ik_cam --parser rules   # 복도 주행 + 현관 도어락 (eval_config_v4.yaml)
 결과: outputs/eval/<run>/trials.jsonl, summary.json, videos/*.mp4
 """
 import argparse
@@ -27,8 +27,8 @@ from sim.scene import make_scene  # noqa: E402
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--config", default=None, help="기본: v2 eval_config.yaml / v3 eval_config_v3.yaml")
-    ap.add_argument("--scene", default="v2", choices=["v2", "v3"])
+    ap.add_argument("--config", default=None, help="기본: v2 eval_config.yaml / v4 eval_config_v4.yaml")
+    ap.add_argument("--scene", default="v2", choices=["v2", "v4"])
     ap.add_argument("--runner", default="ik_gt", choices=RUNNERS)
     ap.add_argument("--parser", default="rules+llm", choices=["rules", "rules+llm"])
     ap.add_argument("--run", default=None, help="실행 이름 (기본 <runner>_<parser>)")
@@ -37,9 +37,9 @@ def main():
     ap.add_argument("--act-ckpt", default=os.environ.get("KWVIP_ACT_CKPT"))
     a = ap.parse_args()
 
-    a.config = a.config or str(ROOT / "eval" / ("eval_config_v3.yaml" if a.scene == "v3" else "eval_config.yaml"))
+    a.config = a.config or str(ROOT / "eval" / ("eval_config_v4.yaml" if a.scene == "v4" else "eval_config.yaml"))
     cfg = yaml.safe_load(open(a.config, encoding="utf-8"))
-    run = a.run or f"{'v3_' if a.scene == 'v3' else ''}{a.runner}_{a.parser.replace('+', '_')}"
+    run = a.run or f"{'v4_' if a.scene == 'v4' else ''}{a.runner}_{a.parser.replace('+', '_')}"
     out_dir = OUT / "eval" / run
     out_dir.mkdir(parents=True, exist_ok=True)
     policy = None
@@ -55,8 +55,10 @@ def main():
         jl.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
         jl.flush()
         p = r["parsed"]
+        res = (f"entered {len(r.get('entered') or '')}/{len(r.get('target') or '')} keys coll {r.get('collisions')}"
+               if r.get("scene") == "v4" else f"tgt {r['peak_mm']}mm other {r['other_mm']}mm")
         print(f"[{r['split']:9s}] seed {r['seed']} {r['command']!r:28s} -> {p['intent']}/{p['floor']} "
-              f"{'OK ' if r['success'] else 'FAIL'} tgt {r['peak_mm']}mm other {r['other_mm']}mm "
+              f"{'OK ' if r['success'] else 'FAIL'} {res} "
               f"{r['fail_type'] or ''} t={r['t_task_s']}s", flush=True)
 
     t0 = time.time()
@@ -74,16 +76,15 @@ def main():
             continue
         sp = cfg["splits"][split]
         for k, seed in enumerate(sp["seeds"]):
-            if a.scene == "v3":
-                from sim.world import make_world
-                floor = make_world(seed, sp["condition"]).floor
+            if a.scene == "v4":
                 tmpl = cfg["trial_commands"]
-                text = tmpl[k % len(tmpl)].format(floor=floor)
+                text, floor, exp = tmpl[k % len(tmpl)], None, {"intent": "unlock"}   # 비밀번호는 시드가 정한 등록값
             else:
                 floor = make_scene(seed, sp["condition"]).floor  # 시드가 정한 목표 층
                 text = cfg["trial_command"].format(floor=floor)
+                exp = {"intent": "press", "floor": floor}
             vid = None if a.no_video else out_dir / "videos" / f"{run}_{seed}.mp4"
-            r = run_episode(text, seed, sp["condition"], floor=floor, expect={"intent": "press", "floor": floor},
+            r = run_episode(text, seed, sp["condition"], floor=floor, expect=exp,
                             parser=a.parser, runner=a.runner, video=vid, act_policy=policy, run_name=run, split=split,
                             scene=a.scene)
             log(r)

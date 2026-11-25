@@ -4,6 +4,7 @@ Navigator.go_to(goal)      : 라이다로 격자를 갱신하며 A* 경로를 pu
                              - 진행 방향 오차가 크면 제자리 회전(차동구동)
                              - 새 장애물이 경로를 막으면 / 1s 마다 재계획
                              - 몸체 앞 15cm 상자 안에 라이다 점이 있으면 비상 정지 -> (뒤가 비면 15cm 후진) -> 재계획
+                               (그 뒤 3s 는 반경 +12cm 로 먼저 계획, 같은 목표로 6번 쌓이면 대안 목표로)
 Navigator.turn_to(yaw)     : 제자리 회전
 Navigator.approach_line(p, yaw) : 직선 접근(도킹 마지막 구간). 횡오차를 조향으로 보정하며 목표 x 까지 전진.
 """
@@ -19,6 +20,8 @@ from nav.planner import astar, path_length
 from sim.world import wrap
 
 CTRL_DT = 0.1
+WIDE_EXTRA = 0.12      # 비상정지 뒤 3s 동안 계획 반경에 더하는 여유 (m)
+ESTOP_SWITCH = 6       # 같은 목표로 가다 비상정지가 이만큼 쌓이면 대안 목표로 바꿈
 
 
 @dataclass
@@ -49,6 +52,7 @@ class Navigator:
         self.cfg = cfg or NavConfig()
         self.status = status or (lambda **kw: None)
         self.log = NavLog()
+        self.wide_until = -1.0
         self.path = None
         self.n_ctrl = max(1, int(round(CTRL_DT / sim.dt)))
         self.scan()
@@ -76,7 +80,12 @@ class Navigator:
         self.log.t += n * self.sim.dt          # 시간 한도가 비상정지 반복에서도 동작하도록
 
     def plan(self, goal):
-        self.path = astar(self.grid, self.sim.base_pose()[:2], goal, ROBOT_R)
+        pos = self.sim.base_pose()[:2]
+        self.path = None
+        if self.log.t < self.wide_until:   # 비상정지 직후: 장애물에서 더 떨어진 경로를 먼저 시도
+            self.path = astar(self.grid, pos, goal, ROBOT_R + WIDE_EXTRA)
+        if self.path is None:
+            self.path = astar(self.grid, pos, goal, ROBOT_R)
         self.log.replans += 1
         if self.path is not None:
             self.log.plans.append([p.tolist() for p in self.path])
@@ -134,6 +143,7 @@ class Navigator:
         t0 = self.log.t
         last_plan, t_noplan = -1e9, None
         self.path = None                     # 이전 목표의 경로는 버린다
+        estops_here, banned = 0, set()
         self.status(state="NAV", goal=goals[gi])
         while True:
             pose = self.sim.base_pose()
@@ -148,9 +158,10 @@ class Navigator:
             if self.path is None or self.log.t - last_plan >= c.replan_every or self._path_blocked():
                 last_plan = self.log.t
                 old = self.path
-                if self.plan(goals[gi]) is None:
+                if gi in banned or self.plan(goals[gi]) is None:
+                    self.path = None
                     for k in range(len(goals)):          # 대안 목표
-                        if k != gi and self.plan(goals[k]) is not None:
+                        if k != gi and k not in banned and self.plan(goals[k]) is not None:
                             gi = k
                             self.status(goal=goals[gi])
                             break
@@ -177,6 +188,11 @@ class Navigator:
                 w = v * k + 0.8 * err * (v < 0.05)
             if v > 0 and front_blocked(self.last_r):
                 self.log.estops += 1
+                estops_here += 1
+                self.wide_until = self.log.t + 3.0
+                if estops_here >= ESTOP_SWITCH and len(goals) > 1 and len(banned) < len(goals) - 1:
+                    banned.add(gi)                  # 이 목표 쪽은 계속 막힘 -> 다음 재계획에서 대안 목표로
+                    estops_here = 0
                 self.stop(0.2)
                 self.scan()
                 # 앞이 막혀 있으면 뒤가 비어 있을 때 15cm 후진해서 공간을 만든 뒤 재계획 (같은 자리 비상정지 반복 방지)

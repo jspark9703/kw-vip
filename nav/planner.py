@@ -1,7 +1,7 @@
 """A* (8-연결) + 장애물 근접 비용 + 직선화(line-of-sight).
 
 비용 = 이동 거리 + W_NEAR * max(0, SOFT - clearance)  -> 장애물에서 되도록 떨어진 경로.
-시작 칸이 팽창 영역 안이면(장애물 옆에서 출발) 시작 칸만 예외로 허용한다.
+시작 칸이 팽창 영역 안이면(장애물 옆에서 출발) 출발 주변 0.6m 안에서 '더 깊이 들어가지 않는' 칸을 허용해 빠져나온다.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import numpy as np
 from nav.grid import ROBOT_R, OccupancyGrid
 
 SOFT = 1.0
+ESCAPE_R = 0.6
 W_NEAR = 3.0
 NB = [(1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0),
       (1, 1, 1.4142), (1, -1, 1.4142), (-1, 1, 1.4142), (-1, -1, 1.4142)]
@@ -23,6 +24,12 @@ def astar(grid: OccupancyGrid, start, goal, r: float = ROBOT_R):
     if clr[g] < r:
         return None
     free = clr >= r
+    if clr[s] < r:
+        # 출발점이 팽창 영역 안(장애물 옆으로 붙어 지나간 뒤 등): 출발 주변 0.6m 안에서는 출발점보다 더 깊이 들어가지
+        # 않는 칸을 허용 -> 빠져나오는 경로가 생긴다 (그 밖은 원래 반경 그대로)
+        ii, jj = np.meshgrid(np.arange(grid.nx), np.arange(grid.ny), indexing="ij")
+        near = np.hypot(ii - s[0], jj - s[1]) * grid.res < ESCAPE_R
+        free |= near & (clr >= clr[s] - 0.02)
     pen = W_NEAR * np.maximum(0.0, SOFT - clr)
     gx, gy = g
     openq = [(0.0, 0.0, s)]

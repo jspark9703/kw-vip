@@ -1,7 +1,7 @@
 """규칙 기반 파서.  역할 두 가지:
  1) 안전장치: 부정·대기·정지 표현을 먼저 걸러낸다 (LLM 결과보다 항상 우선).
  2) 단독 파서: 층수(숫자·한글 숫자·서수·버튼 색)와 누르기 동사를 뽑는다.
-    버튼 색 -> 층 매핑은 scene_v2(색 버튼) 전용. scene_v3 는 버튼 색이 모두 같아 use_color=False (색 요청은 되묻기).
+    버튼 색 -> 층 매핑은 scene_v2(색 버튼) 전용. (scene_v4 도어락 명령은 nlu/doorlock.py)
 
 parse_rules(text) -> {"intent", "floor", "reason", "floors": [...], "block": bool, "confident": bool}
   block=True     : 부정·대기 판정 (validate 가 무조건 wait 로 확정)

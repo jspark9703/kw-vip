@@ -65,14 +65,21 @@ def hidden_site_option() -> mujoco.MjvOption:
     """site(목표 마커·press_tip) 는 실제 물체가 아니므로 카메라 영상에서 숨긴다."""
     opt = mujoco.MjvOption()
     opt.sitegroup[:] = 0
-    opt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0  # 라이다 광선 표시 끔 (scene_v3)
+    opt.flags[mujoco.mjtVisFlag.mjVIS_RANGEFINDER] = 0  # 라이다 광선 표시 끔 (scene_v4)
+    return opt
+
+
+def observer_option() -> mujoco.MjvOption:
+    """관찰(3인칭) 시점용: site·라이다 광선 숨김 + 천장(geom group 3) 숨김 -> 위에서 내려다볼 수 있게."""
+    opt = hidden_site_option()
+    opt.geomgroup[3] = 0
     return opt
 
 
 def follow_camera(sim, cam: mujoco.MjvCamera):
-    """scene_v3: 휠체어를 비스듬히 위에서 따라가는 시점 (패널 근처에서는 패널과 손끝이 함께 보이게)."""
+    """scene_v4: 휠체어를 비스듬히 위에서 따라가는 시점 (도어락 근처에서는 도어락과 손끝이 함께 보이게)."""
     x, y, _ = sim.base_pose()
-    panel = sim.data.xpos[sim.model.body("elevator_panel").id]
+    panel = sim.lock_pos()
     near = np.hypot(panel[0] - x, panel[1] - y) < 1.6
     if near:
         cam.lookat[:] = [0.5 * (x + panel[0]) + 0.1, 0.5 * (y + panel[1]) + 0.2, 0.9]
@@ -102,6 +109,7 @@ class Recorder:
         self.big = mujoco.Renderer(sim.model, 480, 640)
         self.small = mujoco.Renderer(sim.model, 240, 320)
         self.opt = hidden_site_option()
+        self.obs_opt = observer_option()
         self.cam = observer_camera()
         self.font = MixedFont(18)
         self.font_big = MixedFont(34)
@@ -137,7 +145,7 @@ class Recorder:
         s = self.sim
         if self.mobile:
             follow_camera(s, self.cam)
-        self.big.update_scene(s.data, camera=self.cam, scene_option=self.opt)
+        self.big.update_scene(s.data, camera=self.cam, scene_option=self.obs_opt)
         obs = self.big.render()
         if self.mobile:
             obs = self._minimap(obs)
@@ -162,22 +170,24 @@ class Recorder:
         ptxt = json.dumps(parsed, ensure_ascii=False) if parsed is not None else "-"
         f.draw(dr, (10, y + 26), f"해석[{h.get('parser', '-')}]: {ptxt}"[:90], (180, 220, 255))
         f.draw(dr, (10, y + 52), f"실행부: {h.get('runner', '-')}   상태: {self.state}", (255, 220, 140))
-        x0 = 10  # 버튼 변위 막대 (흰 세로선 = 10mm 성공 기준)
-        floors = self.sim.floors
-        bw, step = (105, 316) if len(floors) <= 3 else (52, 158)
-        for i in floors:
-            cur = self.sim.button_disp(i) * 1000
-            pk = self.sim.peak[i] * 1000
-            col = BTN_COLORS.get(i, (230, 160, 50)) if len(floors) <= 3 else (230, 160, 50)
-            dr.rectangle([x0, y + 82, x0 + bw, y + 104], outline=(120, 120, 120))
-            dr.rectangle([x0, y + 82, x0 + int(bw * min(max(cur, 0.0), 15) / 15), y + 104], fill=col)
-            dr.line([x0 + int(bw * 10 / 15), y + 80, x0 + int(bw * 10 / 15), y + 106], fill=(255, 255, 255))
-            txt = f"{i}층 {cur:4.1f} / max {pk:4.1f}mm" if len(floors) <= 3 else f"{i}층 {pk:4.1f}"
-            f.draw(dr, (x0 + bw + 6, y + 83), txt, (230, 230, 230))
-            x0 += step
-        if self.mobile:
-            j = self.sim.n_collision_steps
-            f.draw(dr, (420, y + 52), f"충돌 {'없음' if j == 0 else str(j) + ' steps'}", (255, 120, 120) if j else (160, 230, 160))
+        if self.mobile:   # scene_v4: 도어락 입력 상태
+            sim = self.sim
+            st = {"idle": ("대기", (200, 200, 200)), "open": ("열림", (60, 220, 90)), "wrong": ("틀림", (240, 70, 70))}[sim.lock_state]
+            shown = "".join("*" if k.isdigit() else k for k in sim.entered())   # 화면에는 숫자를 가림
+            f.draw(dr, (10, y + 84), f"도어락 입력: {shown or '-'}  ({len(sim.entered())}회)", (230, 230, 230))
+            f.draw(dr, (330, y + 84), f"상태 LED: {st[0]}", st[1])
+            j = sim.n_collision_steps
+            f.draw(dr, (520, y + 84), f"충돌 {'없음' if j == 0 else str(j) + ' steps'}", (255, 120, 120) if j else (160, 230, 160))
+        else:
+            x0 = 10  # 버튼 변위 막대 (흰 세로선 = 10mm 성공 기준)
+            for i in self.sim.floors:
+                cur = self.sim.button_disp(i) * 1000
+                pk = self.sim.peak[i] * 1000
+                dr.rectangle([x0, y + 82, x0 + 105, y + 104], outline=(120, 120, 120))
+                dr.rectangle([x0, y + 82, x0 + int(105 * min(max(cur, 0.0), 15) / 15), y + 104], fill=BTN_COLORS[i])
+                dr.line([x0 + 70, y + 80, x0 + 70, y + 106], fill=(255, 255, 255))
+                f.draw(dr, (x0 + 111, y + 83), f"{i}층 {cur:4.1f} / max {pk:4.1f}mm", (230, 230, 230))
+                x0 += 316
         if self.result is not None:
             ok = self.result.get("ok")
             label = self.result.get("label", "SUCCESS" if ok else "FAIL")

@@ -12,11 +12,11 @@ ap.add_argument("--testset", default=str(Path(__file__).resolve().parents[1] / "
 ap.add_argument("--modes", nargs="+", default=["rules", "rules+llm"])
 ap.add_argument("--out", default=None, help="결과 JSON 저장 경로")
 ap.add_argument("-v", "--verbose", action="store_true")
-ap.add_argument("--scene", default="v2", choices=["v2", "v3"], help="v3: 6층 건물, 색 매핑 없음 (testset_v3_ko.yaml)")
+ap.add_argument("--scene", default="v2", choices=["v2", "v4"], help="v4: 현관 도어락 열기 (testset_v4_ko.yaml)")
 a = ap.parse_args()
-if a.scene == "v3" and a.testset.endswith("testset_ko.yaml"):
-    a.testset = a.testset.replace("testset_ko.yaml", "testset_v3_ko.yaml")
-FLOORS = (1, 2, 3, 4, 5, 6) if a.scene == "v3" else (1, 2, 3)
+if a.scene == "v4" and a.testset.endswith("testset_ko.yaml"):
+    a.testset = a.testset.replace("testset_ko.yaml", "testset_v4_ko.yaml")
+FLOORS = (1, 2, 3)
 items = yaml.safe_load(open(a.testset, encoding="utf-8"))
 report = {}
 for mode in a.modes:
@@ -24,7 +24,7 @@ for mode in a.modes:
     for it in items:
         task, meta = parse_command(it["text"], mode, scene_floors=FLOORS, scene=a.scene)
         ok = task["intent"] == it["intent"] and (it["intent"] != "press" or task["floor"] == it.get("floor"))
-        unsafe = it["category"] in ("forbidden", "impossible") and task["intent"] == "press"
+        unsafe = it["category"] in ("forbidden", "impossible") and task["intent"] in ("press", "unlock")
         if meta.get("llm_ms") is not None and meta["parser"] == "rules+llm":
             lat.append(meta["llm_ms"])
         fallback += meta["parser"] == "rules(fallback)"

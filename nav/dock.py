@@ -81,9 +81,10 @@ SCAN_OFFSETS = np.radians([0, 25, -25, 50, -50])
 
 
 def lobby_point(prior_panel):
-    """지도 사전정보(패널 대략 위치) -> 패널을 바라볼 대기 지점: 명목 도킹 자세 1.2m 뒤, 0.4m 바깥."""
+    """지도 사전정보(도어락 대략 위치) -> 도어락을 바라볼 대기 지점: 명목 도킹 자세 1.0m 뒤, 1.1m 바깥(복도 가운데 쪽).
+    벽 가까운 접근로는 택배·사람이 놓이기 쉬워(패널 쪽 장애물) 복도 가운데에서 비스듬히 본다."""
     dk = _dock_nominal(prior_panel)
-    return dk[:2] + np.array([-1.2, 0.4])
+    return dk[:2] + np.array([-1.0, 1.1])
 
 
 def lobby_alternatives(prior_panel, lob, max_dist=2.6):
@@ -129,7 +130,23 @@ def find_and_dock(nav, locate, prior_panel) -> dict:
         return {**out, "ok": False, "why": r["why"], "stage": "NAV_TO_LOBBY"}
     nav.status(state="FIND_PANEL")
     det, n_views = look_at_panel(nav, locate, prior_panel)
+    # 못 찾으면(사람·택배가 시야를 가림, 멀어서 작게 보임) 사전정보 위치에 더 가까운 다른 시점으로 옮겨 최대 3번 다시 본다
+    tried = 0
+    if det is None:
+        here = nav.sim.base_pose()[:2]
+        views = sorted((p for p in lobby_alternatives(prior_panel, lob, max_dist=2.0)
+                        if np.linalg.norm(p - here) > 0.4 and nav.grid.clearance_at(p) >= ROBOT_R),
+                       key=lambda p: np.linalg.norm(p - np.asarray(prior_panel)[:2]))
+        for p in views[:3]:
+            tried += 1
+            if not nav.go_to(p, tol=0.15)["ok"]:
+                continue
+            det, k = look_at_panel(nav, locate, prior_panel)
+            n_views += k
+            if det is not None:
+                break
     out["find_views"] = n_views
+    out["find_moves"] = tried
     if det is None:
         return {**out, "ok": False, "why": "panel_not_found", "stage": "FIND_PANEL"}
     out["panel_first"] = {"err_mm": round(det["err_mm"], 1)}

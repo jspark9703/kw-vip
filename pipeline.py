@@ -19,6 +19,7 @@ from sim.scene import FLOORS, make_scene
 ROOT = Path(__file__).resolve().parent
 OUT = Path(os.environ.get("KWVIP_OUT", ROOT / "outputs"))
 RUNNERS = ("ik_gt", "ik_cam", "act")
+SCENES = ("v2", "v4")
 
 _cache: dict = {}
 
@@ -37,35 +38,37 @@ def _locator(runner, sim):
 def run_episode(command: str, seed: int, condition: str = "base", floor: int | None = None,
                 expect: dict | None = None, parser: str = "rules+llm", runner: str = "ik_gt",
                 video: str | Path | None = None, act_policy=None, task_override: dict | None = None,
-                run_name: str | None = None, split: str | None = None, scene: str = "v2") -> dict:
+                run_name: str | None = None, split: str | None = None, scene: str = "v2",
+                password: str | None = None) -> dict:
     """expect: 정답 {"intent", "floor"}. 없으면 해석 결과를 정답으로 간주(데모용).
     task_override: 해석을 건너뛰고 이 작업 JSON 으로 실행(되묻기 후 확정된 작업 등).
-    scene: "v2" 고정 휠체어 3버튼(기존) | "v3" 주행 + 6버튼 숫자 (mission/fsm.py)."""
-    if scene == "v3":
-        from sim.world import BUILDING_FLOORS, make_world
-        sim = make_world(seed, condition, floor=floor)
-        floors = BUILDING_FLOORS
+    scene: "v2" 고정 휠체어 3버튼(이전 단계) | "v4" 아파트 복도 주행 + 현관 도어락 비밀번호 (mission/fsm.py).
+    password: v4 등록 비밀번호 (없으면 시드가 정한 등록 비밀번호)."""
+    v4 = scene == "v4"
+    if v4:
+        from sim.world import make_world
+        sim = make_world(seed, condition, password=password)
     else:
         sim = make_scene(seed, condition, floor=floor)
-        floors = FLOORS
     t_wall0 = time.perf_counter()
     if task_override is not None:
         task, meta = task_override, {"parser": "given", "llm_ms": None}
     else:
-        task, meta = parse_command(command, parser, scene_floors=floors, scene=scene)
+        task, meta = parse_command(command, parser, scene_floors=FLOORS, scene=scene)
     t_parse = time.perf_counter() - t_wall0
 
     rec = None
     if video:
         from sim.recorder import Recorder
+        parsed = {"intent": task["intent"]} if v4 else {k: task[k] for k in ("intent", "floor")}
         rec = Recorder(sim, video, header={"seed": seed, "condition": f"{condition}/{sim.offset_kind}",
-                                           "command": command, "parsed": {k: task[k] for k in ("intent", "floor")},
+                                           "command": command, "parsed": parsed,
                                            "parser": meta["parser"], "runner": runner})
         sim.step_hooks.append(rec)
         rec.capture()
     status = rec.set_status if rec else None
 
-    if scene == "v3":
+    if v4:
         from mission.fsm import run_mission
         res = run_mission(task, sim, runner=runner, status=status)
     elif runner == "act" and task["intent"] == "press":
@@ -76,22 +79,29 @@ def run_episode(command: str, seed: int, condition: str = "base", floor: int | N
         res = execute(task, sim, locate=_locator(runner, sim), status=status)
 
     # ---- 최종 판정: '의도한' 작업 기준 ----
+    moving = "unlock" if v4 else "press"
     exp = expect if expect is not None else {"intent": task["intent"], "floor": task.get("floor")}
-    exp_floor = exp.get("floor") if exp.get("intent") == "press" else None
-    j = sim.judge(exp_floor)
-    parse_ok = (task["intent"] == exp["intent"] or (exp["intent"] != "press" and task["intent"] != "press")) \
-        and (exp["intent"] != "press" or task.get("floor") == exp_floor)
+    if v4:
+        j = sim.judge(sim.password if exp.get("intent") == "unlock" else None)
+        parse_ok = task["intent"] == exp["intent"] or (exp["intent"] != moving and task["intent"] != moving)
+        exp_none = exp.get("intent") != "unlock"
+    else:
+        exp_floor = exp.get("floor") if exp.get("intent") == "press" else None
+        j = sim.judge(exp_floor)
+        parse_ok = (task["intent"] == exp["intent"] or (exp["intent"] != "press" and task["intent"] != "press")) \
+            and (exp["intent"] != "press" or task.get("floor") == exp_floor)
+        exp_none = exp_floor is None
     fail_type = None
     if not j["success"]:
         if not parse_ok:
             fail_type = "nlu"
-        elif exp_floor is None:
+        elif exp_none:
             fail_type = "moved_when_forbidden"
         else:
             fail_type = res.get("fail_type") or ("wrong_button" if j["other_mm"] >= 3 else "contact")
-    elif not parse_ok and exp["intent"] == "press":
+    elif not parse_ok and exp["intent"] == moving:
         fail_type = "nlu"
-    success = bool(j["success"] and parse_ok) if exp["intent"] == "press" else bool(j["success"])
+    success = bool(j["success"] and parse_ok) if exp["intent"] == moving else bool(j["success"])
 
     out = {
         "run": run_name or runner, "split": split, "seed": seed, "condition": condition,
@@ -106,14 +116,15 @@ def run_episode(command: str, seed: int, condition: str = "base", floor: int | N
         "policy_ms": res.get("policy_ms"), "policy_ms_max": res.get("policy_ms_max"), "perception": res.get("perception"), "ik": res.get("ik"),
         "wall_s": round(time.perf_counter() - t_wall0, 2), "video": None, "scene": scene,
     }
-    if scene == "v3":  # 서브태스크 지표
+    if v4:  # 서브태스크 지표
         out.update({"collisions": j.get("collisions"), "nav": res.get("nav"), "dock": res.get("dock"),
-                    "digits": res.get("digits"), "press": res.get("press"), "layout": list(sim.layout),
-                    "message": res.get("message"),
+                    "keys": res.get("keys"), "press": res.get("press"), "password_len": len(sim.password),
+                    "target": j.get("target"), "entered": j.get("entered"), "unlocked": j.get("unlocked"),
+                    "wrong_inputs": j.get("wrong_inputs"), "message": res.get("message"),
                     "stages": [(s_["stage"], s_["t"]) for s_ in res.get("stages", [])]})
     if rec:
-        if exp["intent"] == "press":
-            label = "SUCCESS" if success else f"FAIL: {out['fail_type']}"
+        if exp["intent"] == moving:
+            label = ("문 열림 (SUCCESS)" if v4 else "SUCCESS") if success else f"FAIL: {out['fail_type']}"
         else:
             label = {"wait": "대기 (정상)", "reject": "거절 (정상)", "clarify": "되묻기 (정상)"}.get(task["intent"], "")
             label = label if success else f"FAIL: {out['fail_type']}"

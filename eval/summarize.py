@@ -43,19 +43,19 @@ def summarize(trials):
         s[f"sr_{sp}"] = _sr(rows)
         s[f"n_{sp}"] = len(rows)
         s[f"fail_types_{sp}"] = dict(Counter(t["fail_type"] for t in rows if not t["success"]))
-        if rows and rows[0].get("scene") == "v3":
+        if rows and rows[0].get("scene") == "v4":
             s[f"subtasks_{sp}"] = subtasks(rows)
-    v3 = [t for t in both if t.get("scene") == "v3"]
-    if v3:
-        s["subtasks"] = subtasks(v3)
+    v4 = [t for t in both if t.get("scene") == "v4"]
+    if v4:
+        s["subtasks"] = subtasks(v4)
     return s
 
 
 def subtasks(rows):
-    """scene_v3 서브태스크별 지표 (주행·도킹·숫자 판독·누르기·판단)."""
+    """scene_v4 서브태스크별 지표 (주행·도킹·키 판독·비밀번호 입력·판단)."""
     n = len(rows)
     dock_ok = [t for t in rows if (t.get("dock") or {}).get("ok")]
-    dig = [t["digits"] for t in rows if t.get("digits")]
+    keys = [t["keys"] for t in rows if t.get("keys")]
     pr = [t["press"] for t in rows if t.get("press")]
     ver = [p["verify"] for p in pr if p.get("verify")]
 
@@ -71,21 +71,23 @@ def subtasks(rows):
         "panel_err_mm_median": _median([((t.get("dock") or {}).get("panel_refined") or (t.get("dock") or {}).get("panel_first") or {}).get("err_mm") for t in rows]),
         "dock_err_mm_median": _median([(t.get("dock") or {}).get("dock_err_gt_mm") for t in dock_ok]),
         "back_side_approach": sum(1 for t in dock_ok if t["dock"].get("side") == "back"),
-        "digit_correct": f"{sum(d.get('correct', 0) for d in dig)}/{sum(d.get('n_panel', 6) for d in dig)}",
-        "press_attempts_mean": round(statistics.mean([p["n_attempts"] for p in pr]), 2) if pr else None,
-        "press_retry_trials": sum(1 for p in pr if p["n_attempts"] > 1),
-        "lamp_sensor_agree": f"{sum(bool(v.get('agree')) for v in ver)}/{len(ver)}",
+        "key_read_correct": f"{sum(k.get('correct', 0) for k in keys)}/{sum(k.get('n_keys', 12) for k in keys)}",
+        "keys_pressed": sum(len(t.get("target") or "") for t in rows if t.get("unlocked")),
+        "presses_per_key": round(sum(p["n_presses"] for p in pr) / max(1, sum(len(t.get("target") or "") for t in rows if t.get("press"))), 3) if pr else None,
+        "restart_trials": sum(1 for p in pr if p.get("restarts")),
+        "wrong_inputs": sum(t.get("wrong_inputs") or 0 for t in rows),
+        "led_sensor_agree": f"{sum(bool(v.get('agree')) for v in ver)}/{len(ver)}",
         "t_reach_panel_s_median": _median([stage_t(t, "OBSERVE") for t in rows]),
-        "t_press_phase_s_median": _median([(t["t_motion_s"] - stage_t(t, "OBSERVE")) if stage_t(t, "OBSERVE") is not None else None for t in rows]),
+        "t_entry_s_median": _median([(t["t_motion_s"] - stage_t(t, "OBSERVE")) if stage_t(t, "OBSERVE") is not None else None for t in rows]),
     }
 
 
 def subtask_table(summaries):
     keys = [("nav_dock_reached", "도킹 도달"), ("collision_trials", "충돌 시도"), ("estops_total", "비상정지"),
             ("travel_m_median", "주행 거리"), ("panel_err_mm_median", "패널 오차mm"), ("dock_err_mm_median", "도킹 오차mm"),
-            ("back_side_approach", "반대쪽 접근"), ("digit_correct", "숫자 판독"), ("press_attempts_mean", "평균 시도"),
-            ("press_retry_trials", "재시도 시도"), ("lamp_sensor_agree", "램프=센서"),
-            ("t_reach_panel_s_median", "패널 도착s"), ("t_press_phase_s_median", "누르기 단계s")]
+            ("back_side_approach", "반대쪽 접근"), ("key_read_correct", "키 판독"), ("keys_pressed", "누른 키 수"),
+            ("presses_per_key", "키당 누름"), ("restart_trials", "* 재입력"), ("wrong_inputs", "틀린 입력"),
+            ("led_sensor_agree", "LED=센서"), ("t_reach_panel_s_median", "도어락 도착s"), ("t_entry_s_median", "입력 단계s")]
     rows = [s for s in summaries if s.get("subtasks")]
     if not rows:
         return ""
@@ -120,7 +122,7 @@ if __name__ == "__main__":
     print(table(sums))
     st = subtask_table(sums)
     if st:
-        print("\n서브태스크 (scene v3, 기본+변화 시도)\n" + st)
+        print("\n서브태스크 (scene v4, 기본+변화 시도)\n" + st)
     for s in sums:
         for k in sorted(k for k in s if k.startswith("sr_") and k not in ("sr_base", "sr_variation", "sr_total")):
             sp = k[3:]

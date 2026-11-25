@@ -1,27 +1,27 @@
-# scene_v3 명령 해석 테스트셋: 주행 + 6층 건물(1~6층) + 숫자 버튼(색 구분 없음).
-# 평가용 문장(eval/eval_config_v3.yaml 의 commands)은 여기에 넣지 않는다.
+# scene_v4 명령 해석 테스트셋: 아파트 복도 주행 + 우리 집(1203호) 현관 도어락 열기 (등록 비밀번호).
+# 평가용 문장(eval/eval_config_v4.yaml 의 commands)은 여기에 넣지 않는다.
 # category: paraphrase | forbidden | impossible | ambiguous
-- {text: "엘리베이터로 가서 3층 눌러줘", intent: press, floor: 3, category: paraphrase}
-- {text: "엘리베이터 앞까지 가서 5층 버튼 좀 눌러 줄래?", intent: press, floor: 5, category: paraphrase}
-- {text: "6층으로 가고 싶어", intent: press, floor: 6, category: paraphrase}
-- {text: "사층 버튼 부탁해", intent: press, floor: 4, category: paraphrase}
-- {text: "엘리베이터 타러 가자, 2층이야", intent: press, floor: 2, category: paraphrase}
-- {text: "1층 선택해 줘", intent: press, floor: 1, category: paraphrase}
-- {text: "오층 눌러", intent: press, floor: 5, category: paraphrase}
-- {text: "Go to the elevator and press 4", intent: press, floor: 4, category: paraphrase}
-- {text: "3층 말고 6층 눌러줘", intent: press, floor: 6, category: paraphrase}
-- {text: "Press the button for floor 2", intent: press, floor: 2, category: paraphrase}
-- {text: "엘리베이터 앞에서 기다려", intent: wait, category: forbidden}
-- {text: "아직 출발하지 말고 대기해", intent: wait, category: forbidden}
-- {text: "버튼은 누르지 마", intent: wait, category: forbidden}
+- {text: "현관문 열어줘", intent: unlock, category: paraphrase}
+- {text: "집에 들어가자", intent: unlock, category: paraphrase}
+- {text: "도어락 비밀번호 좀 눌러 줄래?", intent: unlock, category: paraphrase}
+- {text: "우리 집 문 좀 열어 주세요", intent: unlock, category: paraphrase}
+- {text: "1203호 현관 열어줘", intent: unlock, category: paraphrase}
+- {text: "집에 도착했으니 문 따줘", intent: unlock, category: paraphrase}
+- {text: "비번 입력해줘", intent: unlock, category: paraphrase}
+- {text: "Open the door please", intent: unlock, category: paraphrase}
+- {text: "잠금 해제해줘", intent: unlock, category: paraphrase}
+- {text: "들어가고 싶어, 현관 열어", intent: unlock, category: paraphrase}
+- {text: "문 열지 마", intent: wait, category: forbidden}
+- {text: "잠깐 기다려", intent: wait, category: forbidden}
+- {text: "도어락은 누르지 말고 대기해", intent: wait, category: forbidden}
 - {text: "멈춰!", intent: wait, category: forbidden}
-- {text: "4층 버튼은 절대 누르지 마", intent: wait, category: forbidden}
-- {text: "7층 눌러줘", intent: reject, category: impossible}
-- {text: "지하 2층 버튼 눌러", intent: reject, category: impossible}
+- {text: "아직 비밀번호 누르지 마", intent: wait, category: forbidden}
+- {text: "옆집 문 열어줘", intent: reject, category: impossible}
+- {text: "1204호 문 열어줘", intent: reject, category: impossible}
+- {text: "비밀번호 1234 눌러줘", intent: reject, category: impossible}
+- {text: "엘리베이터 불러줘", intent: reject, category: impossible}
 - {text: "물 좀 가져다줘", intent: reject, category: impossible}
-- {text: "창문 열어줘", intent: reject, category: impossible}
-- {text: "12층으로 가자", intent: reject, category: impossible}
-- {text: "빨간 버튼 눌러줘", intent: clarify, category: ambiguous}
-- {text: "엘리베이터 버튼 눌러줘", intent: clarify, category: ambiguous}
-- {text: "2층이랑 5층 눌러", intent: clarify, category: ambiguous}
-- {text: "엘리베이터로 가줘", intent: clarify, category: ambiguous}
+- {text: "버튼 좀 눌러줘", intent: clarify, category: ambiguous}
+- {text: "파란 버튼 눌러", intent: clarify, category: ambiguous}
+- {text: "그거 눌러줘", intent: clarify, category: ambiguous}
+- {text: "입력해줘", intent: clarify, category: ambiguous}
